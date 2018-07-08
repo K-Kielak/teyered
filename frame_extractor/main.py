@@ -235,7 +235,7 @@ def run_tired(VIDEO_TITLE):
     print("Currently working with video file: " + VIDEO_TITLE)
 
     # Parameters
-    FRAMES_TO_SKIP = 29 # Every n-th frame will be analysed
+    FRAMES_TO_SKIP = 2  # Every n-th frame will be analysed
     SHOW_IMAGES = False
     PRINT_INFO = False
 
