@@ -13,6 +13,13 @@ MAX_BLINK_DURATION = 1000  # [ms]
 
 
 def detect_blinks(eye_measurements):
+    """
+    Detects blinks from eye heights measurements by finding continuous
+    sets of outlier heights below the eyes average using double thresholding
+    :param eye_measurements: List of tuples such as
+    (time_of_the_measurement, height_of_the_eye)
+    :return: List of blinks that don't exceed 1s
+    """
     _, heights = zip(*eye_measurements)
     are_blinks = _find_blink_heights(heights)
     blinks = _convert_blink_heights_to_blinks(are_blinks, eye_measurements)

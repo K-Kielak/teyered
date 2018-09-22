@@ -12,7 +12,13 @@ class Blink:
         return f'Blink({self.measurements})'
 
     def get_time_range(self):
+        """
+        :return Start time of the blink and end time of the blink as a tuple
+        """
         return self.measurements[0][0], self.measurements[-1][0]
 
     def get_duration(self):
+        """
+        :return: The total duration of the blink
+        """
         return self.measurements[-1][0] - self.measurements[0][0]
