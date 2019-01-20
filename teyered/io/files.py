@@ -39,6 +39,7 @@ def load_video(video_file_path, frames_to_skip):
 
         ret, frame = cap.read()
         counter += 1
+        frame_timespan = counter / video_fps  # [s]
 
         if not ret:
             logger.warning(f'Frame {counter} could not be read')
@@ -48,12 +49,13 @@ def load_video(video_file_path, frames_to_skip):
         if (counter % frames_to_skip) != 0:
             continue
 
-        frames.append(frame)
+        frames.append((frame_timespan, frame))
 
     logger.info(f'Video loading for {video_file_path} has finished')
 
     cap.release()
     cv2.destroyAllWindows()
+
     return frames
 
 
