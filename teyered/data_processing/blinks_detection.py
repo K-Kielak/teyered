@@ -3,6 +3,7 @@ from math import sqrt
 
 from teyered.data_processing.blink import Blink
 
+
 # How many standard deviations below eyes average should indicate
 # high/low threshold for a blink in double thresholding
 HIGH_THRESHOLD = 1.23
