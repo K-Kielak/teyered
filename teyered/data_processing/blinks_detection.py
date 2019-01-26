@@ -1,4 +1,3 @@
-from datetime import timedelta
 from math import sqrt
 
 from teyered.data_processing.blink import Blink
@@ -10,7 +9,7 @@ HIGH_THRESHOLD = 1.23
 LOW_THRESHOLD = 0.5
 
 # All blinks with duration higher than the constant below will be filtered
-MAX_BLINK_DURATION = 1000  # [ms]
+MAX_BLINK_DURATION = 1  # [s]
 
 
 def detect_blinks(eye_measurements):
@@ -24,9 +23,7 @@ def detect_blinks(eye_measurements):
     _, heights = zip(*eye_measurements)
     are_blinks = _find_blink_heights(heights)
     blinks = _convert_blink_heights_to_blinks(are_blinks, eye_measurements)
-    blinks = [b for b in blinks
-              if b.get_duration() < timedelta(milliseconds=MAX_BLINK_DURATION)]
-
+    blinks = [b for b in blinks if b.get_duration() < MAX_BLINK_DURATION]
     return blinks
 
 
