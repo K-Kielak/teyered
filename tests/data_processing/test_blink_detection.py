@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta
-
 import pytest
 from hamcrest import *
 
@@ -7,43 +5,24 @@ from teyered.data_processing.blink import Blink
 from teyered.data_processing.blinks_detection import detect_blinks
 
 
-def datetime_from_ms(ms):
-    return datetime(1970, 1, 1) + timedelta(milliseconds=ms)
-
-
 @pytest.mark.parametrize('measurements,expected_output', [
     (
-            [(datetime_from_ms(50), 100), (datetime_from_ms(100), 175),
-             (datetime_from_ms(150), 100), (datetime_from_ms(200), 89),
-             (datetime_from_ms(250), 76), (datetime_from_ms(300), 50),
-             (datetime_from_ms(350), 25), (datetime_from_ms(400), 44),
-             (datetime_from_ms(450), 78), (datetime_from_ms(500), 92),
-             (datetime_from_ms(550), 25), (datetime_from_ms(600), 25),
-             (datetime_from_ms(650), 100), (datetime_from_ms(700), 125),
-             (datetime_from_ms(750), 100), (datetime_from_ms(800), 100)],
-            [Blink([(datetime_from_ms(300), 50),
-                    (datetime_from_ms(350), 25),
-                    (datetime_from_ms(400), 44)]),
-             Blink([(datetime_from_ms(550), 25),
-                    (datetime_from_ms(600), 25)])]
+            [(0.05, 100), (0.1, 175), (0.15, 100), (0.2, 89),
+             (0.25, 76), (0.3, 50), (0.35, 25), (0.4, 44),
+             (0.45, 78), (0.5, 92), (0.55, 25), (0.6, 25),
+             (0.65, 100), (0.7, 125), (0.75, 100), (0.8, 100)],
+            [Blink([(0.3, 50), (0.35, 25), (0.4, 44)]),
+             Blink([(0.55, 25), (0.6, 25)])]
     ), (
-            [(datetime_from_ms(0), 100), (datetime_from_ms(50), 250),
-             (datetime_from_ms(150), 100), (datetime_from_ms(200), 100),
-             (datetime_from_ms(250), 100), (datetime_from_ms(300), 100),
-             (datetime_from_ms(350), 70), (datetime_from_ms(400), 0),
-             (datetime_from_ms(450), 70), (datetime_from_ms(500), 70),
-             (datetime_from_ms(550), 100), (datetime_from_ms(600), 100),
-             (datetime_from_ms(650), 100)],
-            [Blink([(datetime_from_ms(350), 70),
-                    (datetime_from_ms(400), 0),
-                    (datetime_from_ms(450), 70),
-                    (datetime_from_ms(500), 70)])]
+            [(0, 100), (50, 250), (0.15, 100), (0.2, 100),
+             (0.25, 100), (0.3, 100), (0.35, 70), (0.4, 0),
+             (0.45, 70), (0.5, 70), (0.55, 100), (0.6, 100),
+             (0.65, 100)],
+            [Blink([(0.35, 70), (0.40, 0), (0.45, 70), (0.5, 70)])]
     ), (
-            [(datetime_from_ms(50), 100), (datetime_from_ms(100), 175),
-             (datetime_from_ms(150), 100), (datetime_from_ms(200), 89),
-             (datetime_from_ms(250), 76), (datetime_from_ms(300), 50),
-             (datetime_from_ms(800), 25), (datetime_from_ms(1300), 44),
-             (datetime_from_ms(1250), 78), (datetime_from_ms(1300), 100)],
+            [(0.050, 100), (0.1, 175), (0.15, 100), (0.2, 89),
+             (0.25, 76), (0.3, 50), (0.8, 25), (1.3, 44),
+             (1.25, 78), (1.3, 100)],
             []
     )
 ])
