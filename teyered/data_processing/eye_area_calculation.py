@@ -1,48 +1,9 @@
 import logging
 
-import cv2
-import dlib
-from imutils import face_utils, resize
-
-from teyered.config import PREDICTOR_FILEPATH
+from teyered.config import UNIVERSAL_RESIZE
 
 
 logger = logging.getLogger(__name__)
-
-# Teyered configuration
-IMAGE_UPSAMPLE_FACTOR = 1  # Ease facial landmark detection (value from dlib)
-UNIVERSAL_RESIZE = 500  # [px] Points are stored at this size
-# Each detected point is given a label associated with a facial landmark
-# Tuple marks lower and upper boundaries of the landmark labels
-RIGHT_EYE_COORDINATES = (36, 42)
-LEFT_EYE_COORDINATES = (42, 48)
-
-
-def extract_facial_points(image):
-    """
-    Extract facial features and corresponding points from the input image
-    :param image: Image frame numpy array to be processed
-    :return: Facial features and corresponding points of the image
-    """
-    detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor(PREDICTOR_FILEPATH)
-    facial_points = {'left_eye': [], 'right_eye': []}
-
-    image = resize(image, width=UNIVERSAL_RESIZE)
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # Detect faces in the grayscale image
-    for (i, rect) in enumerate(detector(gray, IMAGE_UPSAMPLE_FACTOR)):
-        shape = predictor(gray, rect)
-        shape = face_utils.shape_to_np(shape)
-        for name, (i, j) in face_utils.FACIAL_LANDMARKS_IDXS.items():
-            for x, y in shape[i:j]:
-                if (i, j) == RIGHT_EYE_COORDINATES:
-                    facial_points['right_eye'].append((x, y))
-                elif (i, j) == LEFT_EYE_COORDINATES:
-                    facial_points['left_eye'].append((x, y))
-
-    logger.debug('Facial points were successfully extracted from the image')
-    return facial_points
 
 
 def normalize_eye_points(facial_points_list):
@@ -58,24 +19,19 @@ def normalize_eye_points(facial_points_list):
     """
     if not facial_points_list:
         logger.warning('Facial points list is empty')
-        return None
-
-    # [(x1, y1), ..., (xn, yn)] - list of tuples of normalized facial points
-    facial_points_list_normalized = []
+        return []
 
     x_points = [x for (x, y) in facial_points_list]
-    x_min = min(x_points)  # == 0
-    x_max = max(x_points)  # == UNIVERSAL_RESIZE
-    y_min = min([y for (x, y) in facial_points_list])  # == 0
-    x_range = x_max - x_min  # This is always constant
+    x_min = min(x_points)
+    x_max = max(x_points)
+    y_min = min([y for (x, y) in facial_points_list])
+    x_range = x_max - x_min
     x_threshold = UNIVERSAL_RESIZE / x_range  # Value of x per one px
 
-    # Parameter check
-    if x_min > x_max or x_range <= 0:
-        logger.warning('Facial points list is invalid')
-        return None
+    assert x_min <= x_max, 'Facial points list is invalid'
 
     # Normalize x and y
+    facial_points_list_normalized = []
     for x, y in facial_points_list:
         facial_points_list_normalized.append(
             ((x - x_min) * x_threshold, ((y - y_min) / x_range) * 100)
