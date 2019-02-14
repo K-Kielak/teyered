@@ -5,3 +5,5 @@ test.py
 test2.py
 __pycache__
 .pytest_cache
+video.mov
+logic.py

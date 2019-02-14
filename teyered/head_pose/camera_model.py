@@ -20,8 +20,8 @@ class CameraModel:
 
     def initialize_camera_data(self):
         # [ (0,0,0), (0,1,0), (1,0,0) ... (6,5,0) ]
-        self._objp = np.zeros((6*7,3), np.float32)
-        self._objp[:,:2] = np.mgrid[0:7,0:6].T.reshape(-1,2)
+        self._objp = np.zeros((6 * 7, 3), np.float32)
+        self._objp[:,:2] = np.mgrid[0:7, 0:6].T.reshape(-1, 2)
 
         self._obj_points = []  # 3D points in real world space
         self._img_points = []  # 2D points in the image plane
@@ -33,8 +33,8 @@ class CameraModel:
     def calibrate_camera_squares(self, images, square_size = 1):
         """
         Calibrate camera using chessboard pattern (7x6 from OpenCV)
-        :param images: Array of numpy arrays representing images to be used
-        for calibration
+        :param images: Array of images grayscale scaled to be used for
+        calibration
         :param square_size: Size of a side of a square (in any units)
         """
         if not images:
@@ -49,8 +49,7 @@ class CameraModel:
 
         img_count = 0  # Keep count of images that were used for calibration
         for image in images:
-            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            ret, corners = cv2.findChessboardCorners(gray_image, (7,6), None)
+            ret, corners = cv2.findChessboardCorners(image, (7, 6), None)
 
             if ret == True:
                 self._obj_points.append(self._objp)
@@ -65,16 +64,24 @@ class CameraModel:
                                                      None, None)
 
         # Calculate optimal matrix
-        h,w = self._img_sample.shape[:2]
-        self._optimal_camera_matrix,
-        self._roi = cv2.getOptimalNewCameraMatrix(self._camera_matrix,
-                                                 self._distortion_coeff,
-                                                 (w,h), 1, (w,h))
+        h, w = self._img_sample.shape[:2]
+        self._optimal_camera_matrix, self._roi = cv2.getOptimalNewCameraMatrix(
+            self._camera_matrix, self._distortion_coeff, (w, h), 1, (w, h))
 
         self._calibration_image_ratio = (img_count / len(images))
         self._calibrated = True
-        logger.debug('Camera has been calibrated successfully with ratio' + \
+
+        logger.debug('Camera has been calibrated successfully with ratio' \
             f'{self._calibration_image_ratio} (images used/all images)')
+
+    def calibrate_custom_parameters(self, camera_matrix, dist_coeffs):
+        self._camera_matrix = camera_matrix
+        self._distortion_coeff = dist_coeffs
+        self._calibrated = True
+        self._calibration_image_ratio = 0  # Indicates custom calibration
+        self._optimal_camera_matrix = None  # Since no image was provided
+        self._roi = None  # Since no image was provided
+        logger.debug('Camera successfully calibrated using custom parameters')
 
     def get_calibration_image_ratio(self):
         if not self._calibrated:
@@ -102,15 +109,19 @@ class CameraModel:
             logger.warning('Camera is not calibrated')
             return None
 
+        if self._optimal_camera_matrix is None or self._roi is None:
+            logger.warning('Camera is not calibrated properly')
+            return None
+
         undistorted_image = cv2.undistort(image, self._camera_matrix,
                                           self._distortion_coeff, None,
                                           self._optimal_camera_matrix)
-        x,y,w,h = self._roi
+        x, y, w, h = self._roi
         undistorted_image = undistorted_image[y:y+h, x:x+w]
 
         return undistorted_image
 
-    def get_reprojection_error(self):
+    def calculate_reprojection_error(self):
         """
         :return: Mean of reprojection error to estimate how exact the found
         parameters are

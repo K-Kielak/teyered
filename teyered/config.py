@@ -1,5 +1,7 @@
 import os
 
+import numpy as np
+
 
 # Important paths
 PROJECT_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,3 +25,13 @@ NOSE_COORDINATES = (27, 36)
 RIGHT_EYE_COORDINATES = (36, 42)
 LEFT_EYE_COORDINATES = (42, 48)
 MOUTH_COORDINATES = (48, 68)
+
+# Approximation for camera parameters
+FOCAL_LENGTH = UNIVERSAL_RESIZE
+CENTER = (UNIVERSAL_RESIZE / 2, 333 / 2)  # Need to know aspect ratio
+CAMERA_MATRIX = np.array(
+                             [[FOCAL_LENGTH, 0, CENTER[0]],
+                             [0, FOCAL_LENGTH, CENTER[1]],
+                             [0, 0, 1]], dtype = "double"
+                         )
+DIST_COEFFS = np.zeros((4, 1))
