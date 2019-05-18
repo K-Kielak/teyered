@@ -3,6 +3,8 @@ import os
 
 import cv2
 
+from teyered.config import UNIVERSAL_RESIZE
+
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +92,25 @@ class VideoGenerator:
         curr_frame_num = self._vid.get(cv2.CAP_PROP_POS_FRAMES)
         return curr_frame_num == self._vid_frames_count
 
+def load_video(video_file_path):
+    """
+    Temporary (don't have time)
+    """
+    frames = []
+
+    cap = cv2.VideoCapture(video_file_path)
+    video_frames_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    while cap.isOpened():
+        if cap.get(1) == video_frames_count:
+            break
+
+        ret, frame = cap.read()
+        frames.append(frame)
+
+    cap.release()
+    cv2.destroyAllWindows()
+    return frames
 
 def load_image(image_file_path):
     """
@@ -104,6 +125,20 @@ def load_image(image_file_path):
 
     return frame
 
+def save_video(frames, name, format):
+    if format == 'mp4':
+        out = cv2.VideoWriter(f'{name}.{format}', cv2.VideoWriter_fourcc(*'MP4V'),
+                              24, (frames[0].shape[1],frames[0].shape[0]))
+    elif format == 'avi':
+        out = cv2.VideoWriter(f'{name}.{format}', cv2.VideoWriter_fourcc('M','J','P','G'),
+                              24, (frames[0].shape[1],frames[0].shape[0]))
+    else:
+        return
+
+    for frame in frames:
+        out.write(frame)
+
+    out.release()
 
 def save_points(file_path, data):
     """
