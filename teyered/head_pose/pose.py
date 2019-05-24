@@ -88,8 +88,7 @@ def _solve_pnp(image_points, model_points, prev_rvec = None,
 
 def _get_camera_world_coord(rotation_matrix, t_vector):
     """
-    Use object's rotation matrix and translation vector to calculate camera's
-    position in world coordinates
+    Use object's rotation matrix and translation vector to calculate camera's position in world coordinates
     """
     camera_pose_world = -np.matrix(rotation_matrix).T * np.matrix(t_vector)
     return camera_pose_world.reshape(1, -1)
