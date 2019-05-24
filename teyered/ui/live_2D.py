@@ -3,10 +3,12 @@ import numpy as np
 
 from teyered.config import CAMERA_MATRIX, DIST_COEFFS, UNIVERSAL_RESIZE
 from teyered.head_pose.camera_model import CameraModel
-from teyered.io.image_processing import draw_pose_frame, draw_facial_points_frame, gray_image, resize_image, write_angles_frame
-from teyered.head_pose.pose import estimate_pose_live, _prepare_face_model
+from teyered.io.image_processing import draw_pose_frame, draw_facial_points_frame, gray_image, resize_image, write_angles_frame, draw_projected_points, draw_projected_points_frame
+from teyered.head_pose.pose import estimate_pose_live, _prepare_face_model, _prepare_original_face_model
 from teyered.data_processing.points_extractor import FacialPointsExtractor
 from teyered.io.files import load_video, save_video
+
+from teyered.data_processing.eye_normalization import project_eye_points_live, compare_projected_facial
 
 
 VERTICAL_LINE = "\n-----------------------\n"
@@ -26,6 +28,7 @@ def main():
     camera_model = CameraModel()
     points_extractor = FacialPointsExtractor()
     model_points = _prepare_face_model()
+    model_points_all = _prepare_original_face_model()
 
     print(VERTICAL_LINE)
     print('2. Calibrating camera...')
@@ -104,12 +107,25 @@ def main():
         # Pose estimation
         r_vector, t_vector, angles, camera_world_coord = estimate_pose_live(facial_points, prev_rvec, prev_tvec, model_points)
 
-        # Image processing and display
+        # Projecting eye points
+        model_points_projected = project_eye_points_live(model_points_all, r_vector, t_vector)
+
+        # Calculate eye closedness
+        closedness_left = compare_projected_facial(model_points_projected[36:42], facial_points[36:42])
+        closedness_right = compare_projected_facial(model_points_projected[42:48], facial_points[42:48])
+
+        print(f'Closedness left: {closedness_left}')
+        print(f'Closedness right: {closedness_right}')
+
+        # Image processing
         if (DISPLAY_OPTION == 'a' or DISPLAY_OPTION == 'c'):
             draw_facial_points_frame(frame_resized, facial_points)
+            draw_projected_points_frame(frame_resized, model_points_projected)
         if (DISPLAY_OPTION == 'b' or DISPLAY_OPTION == 'c'):
             draw_pose_frame(frame_resized, facial_points, r_vector, t_vector, CAMERA_MATRIX, DIST_COEFFS)
             write_angles_frame(frame_resized, angles, TEXT_COLOR)
+
+        # Display image
         cv2.imshow('Display video', frame_resized)
         if cv2.waitKey(60) & 0xFF == ord('q'):
             break

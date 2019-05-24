@@ -3,11 +3,12 @@ import numpy as np
 
 from teyered.config import CAMERA_MATRIX, DIST_COEFFS, UNIVERSAL_RESIZE
 from teyered.head_pose.camera_model import CameraModel
-from teyered.io.image_processing import draw_pose, draw_facial_points, display_video, gray_video, resize_video, write_angles
-from teyered.head_pose.pose import estimate_pose
+from teyered.io.image_processing import draw_pose, draw_facial_points, display_video, gray_video, resize_video, write_angles, draw_projected_points
+from teyered.head_pose.pose import estimate_pose, _prepare_original_face_model
 from teyered.data_processing.points_extractor import FacialPointsExtractor
 from teyered.io.files import load_video, save_video
 
+from teyered.data_processing.eye_normalization import project_eye_points
 
 VIDEO_PATH = 'video.mov'
 VERTICAL_LINE = "\n-----------------------\n"
@@ -26,6 +27,7 @@ def main():
     # Setup objects
     camera_model = CameraModel()
     points_extractor = FacialPointsExtractor()
+    model_points_all = _prepare_original_face_model()
 
     print(VERTICAL_LINE)
     print('2. Calibrating camera...')
@@ -40,6 +42,7 @@ def main():
     frames = gray_video(frames_resized)
     facial_points_all = points_extractor.extract_facial_points(frames)
     r_vectors_all, t_vectors_all, angles_all, camera_world_coord_all = estimate_pose(facial_points_all)
+    model_points_projected_all = project_eye_points(frames, facial_points_all, model_points_all, r_vectors_all, t_vectors_all)
 
     print(VERTICAL_LINE)
     print('4. Drawing and displaying the result...')
@@ -47,6 +50,7 @@ def main():
     draw_pose(frames_resized, facial_points_all, r_vectors_all, t_vectors_all, CAMERA_MATRIX, DIST_COEFFS)
     draw_facial_points(frames_resized, facial_points_all)
     write_angles(frames_resized, angles_all, TEXT_COLOR)
+    draw_projected_points(frames_resized, model_points_projected_all)
 
     print(VERTICAL_LINE)
     input("5. Video is ready. Press Enter to view...")
