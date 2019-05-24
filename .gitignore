@@ -9,3 +9,4 @@ logic.py
 *.mov
 *.avi
 *.mp4
+.vscode/

@@ -49,9 +49,7 @@ class FacialPointsExtractor:
         new_points_good = np.array(points_status[points_status[:,2] == 1],
                                    dtype=np.float32)
 
-        # If some points were not tracked, redetect all (idea: redetect only those
-        # which are needed based on errors of individual points, for example by
-        # pure pixel distance from detected points)
+        # If some points were not tracked, redetect all
         if new_points_good.shape[0] != detected_points.shape[0]:
             return None
 
@@ -125,7 +123,6 @@ class FacialPointsExtractor:
 
         # (Re)detect at every TRACKING_LENGTHth frame
         if frame_count % TRACKING_LENGTH == 0 or previous_frame is None:
-            print('Detect')
             return (detected_facial_points, 1)
         # Track
         else:
@@ -136,5 +133,4 @@ class FacialPointsExtractor:
                 print('Failed track, redetect')
                 return (detected_facial_points, 1)
             else:
-                print('Track')
                 return (tracked_points, frame_count+1)
