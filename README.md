@@ -132,6 +132,14 @@ Idea: we need to connect head pose with eye area estimation. This could be done 
 
 This can be used on any frame and we don't need to concern ourselves with anything at all, only the accuracy of head pose and facial landmarks.
 
+<p align="center">
+    <img src="readme_images/eye_normalization.png">
+</p>
+
+As seen in the above photo, we can clearly notice how half closed gives a smaller area compared to ground truth. This can be done on any face angle using the rotation and translation vectors we obtained, thus accounting for all types of head movements.
+
+* **TODO:** Fix the way coordinates are stored and optimize `face_model.txt`, as currently it's a very approximate model.
+
 ## Example logic flow
 
 ```python

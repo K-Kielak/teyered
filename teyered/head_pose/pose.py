@@ -10,6 +10,20 @@ from teyered.config import FACE_MODEL_FILEPATH, JAW_COORDINATES, \
 logger = logging.getLogger(__name__)
 
 
+def _prepare_original_face_model():
+    """
+    Identical to prepare face model, but returns all points instead of only the chosen ones
+    """
+    face_info = np.array(open(FACE_MODEL_FILEPATH, "r+").readlines(),
+                         dtype=np.float32)
+
+    face_model = np.zeros((68, 3), dtype=np.float32)
+    face_model[:,0] = face_info[0:68]  # x coordinate
+    face_model[:,1] = (-1) * face_info[68:136]  # y coordinate (reverse)
+    face_model[:,2] = (-1) * face_info[136:204]  # z coordinate (reverse)
+
+    return face_model
+
 def _prepare_face_model():
     """
     Extract relevant features from the model file

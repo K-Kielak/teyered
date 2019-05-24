@@ -81,6 +81,27 @@ def draw_facial_points(frames, facial_points_all):
     logger.debug('Facial points drawn successfully')
     return np.array(edited_frames)
 
+def draw_projected_points(frames, projected_points):
+    """
+    :param frames: All frames scaled to projected points
+    :param reprojected_points: Array of projected points to be drawn for each frame
+    :return: All frames with projected points drawn on them
+    """
+    edited_frames = []
+
+    if len(frames) != len(projected_points):
+        logger.warning('Projected points must be provided for every frame')
+        return None
+
+    for i in range(0, len(frames)):
+        edited_frame = frames[i]
+        for point in projected_points[i]:
+            cv2.circle(edited_frame, (int(point[0][0]), int(point[0][1])), 1, (0, 0, 255), -1)
+        edited_frames.append(edited_frame)
+
+    logger.debug('Projected points drawn successfully')
+    return np.array(edited_frames)
+
 def write_angles(frames, angles_all, color):
     edited_frames = []
 
@@ -160,6 +181,14 @@ def draw_facial_points_frame(frame, facial_points):
     for point in facial_points:
         cv2.circle(edited_frame, (int(point[0]), int(point[1])),
                    1, (0, 255, 0), -1)
+    return edited_frame
+
+def draw_projected_points_frame(frame, projected_points):
+    edited_frame = frame
+
+    for point in projected_points:
+        cv2.circle(edited_frame, (int(point[0][0]), int(point[0][1])),
+                   1, (0, 0, 255), -1)
     return edited_frame
 
 def write_angles_frame(frame, angles, color):

@@ -86,7 +86,7 @@ class FacialPointsExtractor:
             detected_facial_points = self._detect_facial_points(frame)
 
             # No facial points detected, skip this frame (or track from previous?)
-            if detected_facial_points.shape == (0,):
+            if detected_facial_points is None:
                 facial_points_all.append([])
                 frame_count = 0
                 continue
