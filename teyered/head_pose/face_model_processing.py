@@ -6,6 +6,8 @@ import numpy as np
 from teyered.config import FACE_MODEL_FILEPATH, JAW_COORDINATES, \
      NOSE_COORDINATES
 
+from teyered.io.image_processing import draw_facial_points_frame
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,5 +59,8 @@ def get_ground_truth(frame, facial_ponts_extractor):
     :param frame: Ground truth frame
     :return: Ground truth facial points
     """
+
+    #cv2.imshow("Detected", draw_facial_points_frame(frame, facial_ponts_extractor.detect_facial_points(frame)))
+    #cv2.waitKey(0)
 
     return facial_ponts_extractor.detect_facial_points(frame)
