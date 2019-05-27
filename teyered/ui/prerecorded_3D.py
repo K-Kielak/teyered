@@ -26,7 +26,7 @@ import time
 
 VERTICAL_LINE = "\n-----------------------\n"
 
-VIDEO_PATH = 'video.mov'
+VIDEO_PATH = 'test_videos/video.mov'
 FACE_SIZE_RATIO = 0.05
 
 

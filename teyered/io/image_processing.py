@@ -10,6 +10,11 @@ from teyered.config import UNIVERSAL_RESIZE
 logger = logging.getLogger(__name__)
 
 
+RED_COLOR = (0, 0, 255) #R
+GREEN_COLOR = (0, 255, 0) #G
+BLUE_COLOR = (255, 0, 0) #B
+
+
 def draw_pose(frames, facial_points_all, r_vectors_all, t_vectors_all,
               camera_matrix, dist_coeffs):
     """
@@ -34,13 +39,13 @@ def draw_pose(frames, facial_points_all, r_vectors_all, t_vectors_all,
     for i in range(0, len(frames)):
         edited_frame = frames[i]
 
-        rot_x, _ = cv2.projectPoints(np.array([(100.0, 0.0, 0.0)]),
+        rot_x, _ = cv2.projectPoints(np.array([(1.0, 0.0, 0.0)]),
                                      r_vectors_all[i], t_vectors_all[i],
                                      camera_matrix, dist_coeffs)
-        rot_y, _ = cv2.projectPoints(np.array([(0.0, 100.0, 0.0)]),
+        rot_y, _ = cv2.projectPoints(np.array([(0.0, -1.0, 0.0)]),
                                      r_vectors_all[i], t_vectors_all[i],
                                      camera_matrix, dist_coeffs)
-        rot_z, _ = cv2.projectPoints(np.array([(0.0, 0.0, 100.0)]),
+        rot_z, _ = cv2.projectPoints(np.array([(0.0, 0.0, -2.0)]),
                                      r_vectors_all[i], t_vectors_all[i],
                                      camera_matrix, dist_coeffs)
 
@@ -154,13 +159,13 @@ def draw_pose_frame(frame, facial_points, r_vector, t_vector, camera_matrix,
                     dist_coeffs):
     edited_frame = frame
 
-    rot_x, _ = cv2.projectPoints(np.array([(100.0, 0.0, 0.0)]),
+    rot_x, _ = cv2.projectPoints(np.array([(1.0, 0.0, 0.0)]),
                                  r_vector, t_vector,
                                  camera_matrix, dist_coeffs)
-    rot_y, _ = cv2.projectPoints(np.array([(0.0, 100.0, 0.0)]),
+    rot_y, _ = cv2.projectPoints(np.array([(0.0, -1.0, 0.0)]),
                                  r_vector, t_vector,
                                  camera_matrix, dist_coeffs)
-    rot_z, _ = cv2.projectPoints(np.array([(0.0, 0.0, 100.0)]),
+    rot_z, _ = cv2.projectPoints(np.array([(0.0, 0.0, -2.0)]),
                                  r_vector, t_vector,
                                  camera_matrix, dist_coeffs)
 
@@ -169,9 +174,9 @@ def draw_pose_frame(frame, facial_points, r_vector, t_vector, camera_matrix,
     p_y = (int(rot_y[0][0][0]), int(rot_y[0][0][1]))
     p_z = (int(rot_z[0][0][0]), int(rot_z[0][0][1]))
 
-    cv2.line(edited_frame, p_origin, p_x, (255, 0, 0), 2) # B
-    cv2.line(edited_frame, p_origin, p_y, (0, 255, 0), 2) # G
-    cv2.line(edited_frame, p_origin, p_z, (0, 0, 255), 2) # R
+    cv2.line(edited_frame, p_origin, p_x, BLUE_COLOR, 2) # B
+    cv2.line(edited_frame, p_origin, p_y, GREEN_COLOR, 2) # G
+    cv2.line(edited_frame, p_origin, p_z, RED_COLOR, 2) # R
 
     return edited_frame
 

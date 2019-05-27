@@ -10,38 +10,7 @@ from teyered.config import FACE_MODEL_FILEPATH, JAW_COORDINATES, \
 logger = logging.getLogger(__name__)
 
 
-def _prepare_original_face_model():
-    """
-    Identical to prepare face model, but returns all points instead of only the chosen ones
-    """
-    face_info = np.array(open(FACE_MODEL_FILEPATH, "r+").readlines(),
-                         dtype=np.float32)
-
-    face_model = np.zeros((68, 3), dtype=np.float32)
-    face_model[:,0] = face_info[0:68]  # x coordinate
-    face_model[:,1] = (-1) * face_info[68:136]  # y coordinate (reverse)
-    face_model[:,2] = (-1) * face_info[136:204]  # z coordinate (reverse)
-
-    return face_model
-
-def _prepare_face_model():
-    """
-    Extract relevant features from the model file
-    Model file: 68 points for x coord, 68 points for y coord, 68 points for
-    z coord. Points match dlib facial features points
-    :return: Array of tuples of face points in world coordinates
-    """
-    face_info = np.array(open(FACE_MODEL_FILEPATH, "r+").readlines(),
-                         dtype=np.float32)
-
-    face_model = np.zeros((68, 3), dtype=np.float32)
-    face_model[:,0] = face_info[0:68]  # x coordinate
-    face_model[:,1] = (-1) * face_info[68:136]  # y coordinate (reverse)
-    face_model[:,2] = (-1) * face_info[136:204]  # z coordinate (reverse)
-
-    return _choose_pose_points(face_model)
-
-def _choose_pose_points(facial_points):
+def choose_pose_points(facial_points):
     """
     Choose facial points which will be used to solve PnP
     :param facial_points: array of facial points from detection algorithm
@@ -58,7 +27,7 @@ def _choose_pose_points(facial_points):
 
     return np.array([tuple(p) for p in points], dtype='double')
 
-def _get_euler_angles(rotation_matrix, translation_vector):
+def get_euler_angles(rotation_matrix, translation_vector):
     """
     Get euler angles from rotation matrix and translation vector (XYZ)
     """
@@ -72,13 +41,13 @@ def _get_euler_angles(rotation_matrix, translation_vector):
 
     return (yaw, pitch, roll)
 
-def _get_rotation_matrix(rotation_vector):
+def get_rotation_matrix(rotation_vector):
     """
     Convert axis and angle of rotation representation to rotation matrix
     """
     return cv2.Rodrigues(rotation_vector)
 
-def _solve_pnp(image_points, model_points, prev_rvec = None,
+def solve_pnp(image_points, model_points, prev_rvec = None,
                      prev_tvec = None):
     """
     Calculate rotation and translation vectors by solving PnP
@@ -100,17 +69,18 @@ def _solve_pnp(image_points, model_points, prev_rvec = None,
                                              flags=cv2.cv2.SOLVEPNP_ITERATIVE)
     return (r_vector, t_vector)
 
-def _get_camera_world_coord(rotation_matrix, t_vector):
+def get_camera_world_coord(rotation_matrix, t_vector):
     """
     Use object's rotation matrix and translation vector to calculate camera's position in world coordinates
     """
     camera_pose_world = -np.matrix(rotation_matrix).T * np.matrix(t_vector)
     return camera_pose_world.reshape(1, -1)
 
-def estimate_pose(facial_points_all):
+def estimate_pose(facial_points_all, model_points):
     """
     Estimate 3D pose of an object in camera coordinates from given facial points
     :param facial_points_all: List of facial points coordinates for all frames
+    :param model_points_all: 
     :return: 4-tuple containing rotation vector, translation vector,
     euler angles and camera position in world coordinates for every frame
     """
@@ -124,8 +94,8 @@ def estimate_pose(facial_points_all):
     prev_rvec = None
     prev_tvec = None
 
-    model_points = _prepare_face_model()
-    logger.debug('Face model points have been prepared successfully')
+    # Choose model points
+    model_points_pose = choose_pose_points(model_points)
 
     for facial_points in facial_points_all:
         # No facial points were detected for that frame, skip and reset
@@ -138,16 +108,16 @@ def estimate_pose(facial_points_all):
             prev_tvec = None
             continue
 
-        facial_points = _choose_pose_points(facial_points)
+        facial_points = choose_pose_points(facial_points)
 
-        r_vector, t_vector = _solve_pnp(facial_points, model_points,
+        r_vector, t_vector = solve_pnp(facial_points, model_points_pose,
                                         prev_rvec, prev_tvec)
         prev_rvec = r_vector
         prev_tvec = t_vector
 
-        rotation_matrix, _ = _get_rotation_matrix(r_vector)
-        yaw, pitch, roll = _get_euler_angles(rotation_matrix, t_vector)
-        camera_world_coord = _get_camera_world_coord(rotation_matrix, t_vector)
+        rotation_matrix, _ = get_rotation_matrix(r_vector)
+        yaw, pitch, roll = get_euler_angles(rotation_matrix, t_vector)
+        camera_world_coord = get_camera_world_coord(rotation_matrix, t_vector)
 
         # The following will use np.copy() since otherwise list is always
         # appended by the same reference for some reason, and all array
@@ -161,13 +131,14 @@ def estimate_pose(facial_points_all):
     return (r_vectors_all, t_vectors_all, angles_all, camera_world_coord_all)
 
 def estimate_pose_live(facial_points, prev_rvec, prev_tvec, model_points):
-    facial_points = _choose_pose_points(facial_points)
+    facial_points = choose_pose_points(facial_points)
+    model_points_pose = choose_pose_points(model_points)
 
-    r_vector, t_vector = _solve_pnp(facial_points, model_points,
+    r_vector, t_vector = solve_pnp(facial_points, model_points_pose,
                                     prev_rvec, prev_tvec)
 
-    rotation_matrix, _ = _get_rotation_matrix(r_vector)
-    yaw, pitch, roll = _get_euler_angles(rotation_matrix, t_vector)
-    camera_world_coord = _get_camera_world_coord(rotation_matrix, t_vector)
+    rotation_matrix, _ = get_rotation_matrix(r_vector)
+    yaw, pitch, roll = get_euler_angles(rotation_matrix, t_vector)
+    camera_world_coord = get_camera_world_coord(rotation_matrix, t_vector)
 
     return (r_vector, t_vector, [yaw, pitch, roll], camera_world_coord)

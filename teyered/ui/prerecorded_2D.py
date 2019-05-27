@@ -10,7 +10,7 @@ from teyered.io.files import load_video, save_video
 
 from teyered.data_processing.eye_normalization import project_eye_points
 
-VIDEO_PATH = 'video.mov'
+VIDEO_PATH = 'test_videos/video.mov'
 VERTICAL_LINE = "\n-----------------------\n"
 
 TEXT_COLOR = (255,255,255)

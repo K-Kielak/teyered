@@ -55,7 +55,7 @@ class FacialPointsExtractor:
 
         return new_points_good[:,0:2]
 
-    def _detect_facial_points(self, frame):
+    def detect_facial_points(self, frame):
         """
         Detect facial points of the first detected face in a frame using dlib
         :param frame: Frame grayscale scaled
@@ -83,7 +83,7 @@ class FacialPointsExtractor:
 
         frame_count = 0
         for frame in frames:
-            detected_facial_points = self._detect_facial_points(frame)
+            detected_facial_points = self.detect_facial_points(frame)
 
             # No facial points detected, skip this frame (or track from previous?)
             if detected_facial_points is None:
@@ -115,7 +115,7 @@ class FacialPointsExtractor:
 
     def extract_facial_points_live(self, previous_frame, previous_points, frame, frame_count):
 
-        detected_facial_points = self._detect_facial_points(frame)
+        detected_facial_points = self.detect_facial_points(frame)
 
         # No facial points detected, skip this frame (or track from previous?)
         if detected_facial_points is None:
