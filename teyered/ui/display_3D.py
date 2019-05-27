@@ -17,11 +17,11 @@ import math
 from teyered.config import CAMERA_MATRIX, DIST_COEFFS, UNIVERSAL_RESIZE
 from teyered.head_pose.camera_model import CameraModel
 from teyered.io.image_processing import draw_pose_frame, draw_facial_points_frame, gray_image, resize_image, write_angles_frame
-from teyered.head_pose.pose import estimate_pose_live, get_rotation_matrix
+from teyered.head_pose.pose import estimate_pose_live, _prepare_face_model, _get_rotation_matrix, _prepare_original_face_model, _choose_pose_points
 from teyered.data_processing.points_extractor import FacialPointsExtractor
 from teyered.io.files import load_video, load_image
 
-from teyered.head_pose.face_model_processing import load_face_model, optimize_face_model, get_ground_truth
+from teyered.head_pose.face_model_processing import optimize_face_model, get_ground_truth
 
 import time
 
@@ -34,10 +34,6 @@ cap = cv2.VideoCapture(0)
 
 GROUND_TRUTH_FRAME = 'ground_truth/frame.jpg'
 
-RED_COLOR = (1.0, 0.0, 0.0, 1.0)
-GREEN_COLOR = (0.0, 1.0, 0.0, 1.0)
-BLUE_COLOR = (0.0, 0.0, 1.0, 1.0)
-YELLOW_COLOR = (1.0, 1.0, 0.0, 1.0)
 
 class Live3D():
 
@@ -83,88 +79,96 @@ class Live3D():
         gy.translate(0, 10, 0)
         self.window.addItem(gy)
         gz = gl.GLGridItem()
-        gz.translate(0, 0, 10)
+        gz.translate(0, 0, -10)
         self.window.addItem(gz)
         gx2 = gl.GLGridItem()
         gx2.rotate(90, 0, 1, 0)
         gx2.translate(10, 0, 0)
         self.window.addItem(gx2)
-        gy2 = gl.GLGridItem()
-        gy2.rotate(90, 1, 0, 0)
-        gy2.translate(0, -10, 0)
-        self.window.addItem(gy2)
+        gz2 = gl.GLGridItem()
+        gz2.translate(0, 0, 10)
+        self.window.addItem(gz2)
 
         # Axis display for orientation purposes
         axis = gl.GLAxisItem()
         self.window.addItem(axis)
 
+        # Set up model scatter plot and plot initial points
         random_points = np.zeros((10, 3))
-
-        # Set up scatter plot and plot initial points
-        self.face_point_scatter = gl.GLScatterPlotItem()
-        self.face_point_scatter.setData(
+        self.model_points_scatter = gl.GLScatterPlotItem()
+        self.model_points_scatter.setData(
             pos = random_points,
             color = (0.5, 0.0, 0.5, 1.0),
             size = 10,
             pxMode = True
         )
-        self.window.addItem(self.face_point_scatter)
+        self.window.addItem(self.model_points_scatter)
 
-        # 3D face rotation lines
-        self.rot_x = gl.GLLinePlotItem()
-        self.rot_x.setData(
+        # Set up optimized model points plot
+        self.o_model_points_scatter = gl.GLScatterPlotItem()
+        self.o_model_points_scatter.setData(
             pos = random_points,
-            color = BLUE_COLOR, #B
-            width = 10,
-            mode = 'line_strip'
+            color = (0.0, 0.5, 0.0, 1.0),
+            size = 10,
+            pxMode = True
         )
-        self.window.addItem(self.rot_x)
+        self.window.addItem(self.o_model_points_scatter)
 
-        self.rot_y = gl.GLLinePlotItem()
-        self.rot_y.setData(
+        # Set up original unscaled untranslated model points plot
+        self.to_model_points_scatter = gl.GLScatterPlotItem()
+        self.to_model_points_scatter.setData(
             pos = random_points,
-            color = GREEN_COLOR, #G
-            width = 10,
-            mode = 'line_strip'
+            color = (0.0, 0.5, 0.0, 1.0),
+            size = 10,
+            pxMode = True
         )
-        self.window.addItem(self.rot_y)
+        self.window.addItem(self.to_model_points_scatter)
 
-        self.rot_z = gl.GLLinePlotItem()
-        self.rot_z.setData(
+        # Set up face points plot
+        self.facial_points_scatter = gl.GLScatterPlotItem()
+        self.facial_points_scatter.setData(
             pos = random_points,
-            color = RED_COLOR, #R
-            width = 10,
-            mode = 'line_strip'
+            color = (0.0, 0.5, 0.0, 1.0),
+            size = 10,
+            pxMode = True
         )
-        self.window.addItem(self.rot_z)
+        self.window.addItem(self.facial_points_scatter)
 
-        # 3D axis
-        self.axis_x = gl.GLLinePlotItem()
-        self.axis_x.setData(
-            pos = np.array([[0,0,0],[1,0,0]]),
-            color = BLUE_COLOR, #B
-            width = 10,
-            mode = 'line_strip'
+        # Set up old 3D model plot
+        self.old_face_model_scatter = gl.GLScatterPlotItem()
+        self.old_face_model_scatter.setData(
+            pos = random_points,
+            color = (0.0, 0.5, 0.0, 1.0),
+            size = 10,
+            pxMode = True
         )
-        self.window.addItem(self.axis_x)
+        self.window.addItem(self.old_face_model_scatter)
 
-        self.axis_y = gl.GLLinePlotItem()
-        self.axis_y.setData(
-            pos = np.array([[0,0,0],[0,-1,0]]),
-            color = GREEN_COLOR, #G
-            width = 10,
+        # Axis
+        self.x_axis = gl.GLLinePlotItem()
+        self.x_axis.setData(
+            pos = np.array([[0,0,0], [1,0,0]])*10,
+            color = (1.0, 0.0, 0.0, 1.0), # R
+            width = 15,
             mode = 'line_strip'
         )
-        self.window.addItem(self.axis_y)
-
-        self.axis_z = gl.GLLinePlotItem()
-        self.axis_z.setData(
-            pos = np.array([[0,0,0],[0,0,-1]]),
-            color = RED_COLOR, #R
-            width = 10,
+        self.window.addItem(self.x_axis)
+        self.y_axis = gl.GLLinePlotItem()
+        self.y_axis.setData(
+            pos = np.array([[0,0,0], [0,1,0]])*10,
+            color = (0.0, 1.0, 0.0, 1.0), # G
+            width = 15,
             mode = 'line_strip'
         )
-        self.window.addItem(self.axis_z)
+        self.window.addItem(self.y_axis)
+        self.z_axis = gl.GLLinePlotItem()
+        self.z_axis.setData(
+            pos = np.array([[0,0,0], [0,0,1]])*10,
+            color = (0.0, 0.0, 1.0, 1.0), # B
+            width = 15,
+            mode = 'line_strip'
+        )
+        self.window.addItem(self.z_axis)
 
     def _prepare_2D(self):
         camera_model = CameraModel()
@@ -183,11 +187,54 @@ class Live3D():
         self.frame_count = 0
         self.cap = cv2.VideoCapture(0)
 
-        # Setup model points
-        model_points_original = load_face_model()
-        facial_points_ground_truth = get_ground_truth(load_image(GROUND_TRUTH_FRAME), self.points_extractor)
-        (model_points_optimized, _, model_points_norm) = optimize_face_model(facial_points_ground_truth, model_points_original)
-        self.model_points = model_points_norm
+        o_model_points_all = _prepare_original_face_model()
+        ground_truth = get_ground_truth(load_image(GROUND_TRUTH_FRAME), self.points_extractor)
+        (model_points_all, facial_points_z, model_points_z) = optimize_face_model(ground_truth, o_model_points_all)
+
+        self.model_points = _choose_pose_points(model_points_all)
+
+        """
+        self.model_points_scatter.setData(
+            pos = model_points_all*2,
+            color = (0.5, 0.0, 0.0, 1.0), #R
+            size = 10,
+            pxMode = True
+        )
+        """
+        """
+        self.o_model_points_scatter.setData(
+            pos = model_points_z*2,
+            color = (0.0, 0.5, 0.0, 1.0), #G
+            size = 10,
+            pxMode = True
+        )
+        """
+        """
+        self.to_model_points_scatter.setData(
+            pos = o_model_points_all*0.025,
+            color = (0.5, 0, 0.5, 1.0), #BG
+            size = 10,
+            pxMode = True
+        )
+        """
+        """
+        self.facial_points_scatter.setData(
+            pos = facial_points_z*2,
+            color = (0.5, 0.0, 0.0, 1.0), #BG
+            size = 10,
+            pxMode = True
+        )
+        """ 
+        """
+        old_model = np.array([[0.0,0.0,0.0],[0.0,-330.0, -65.0],[-225.0,170.0,-135.0], [225.0,170.0,-135.0],[-150.0,-150.0,-125.0],[150.0,-150.0,-125.0]])
+        self.old_face_model_scatter.setData(
+            pos = np.array([old_model[i] for i in [0,1,2,4]])*0.01,
+            color = (0.0, 0.5, 0.5, 1.0),
+            size = 10,
+            pxMode = True
+        )
+        """
+
 
     def update(self):
         _, frame = cap.read()
@@ -235,11 +282,6 @@ class Live3D():
         # Pose estimation
         r_vector, t_vector, angles, camera_world_coord = estimate_pose_live(facial_points, self.prev_rvec, self.prev_tvec, self.model_points)
 
-        # Print angles
-        print(f'yaw: {angles[0][0]}')
-        print(f'pitch: {angles[1][0]}')
-        print(f'roll: {angles[2][0]}\n')
-
         # Set previous vectors
         self.prev_rvec = r_vector
         self.prev_tvec = t_vector
@@ -263,39 +305,10 @@ class Live3D():
         facial_points_3D_scaled = np.array(facial_points_3D_scaled)
 
         # This is a mistake with rotation matrix, should be returned
-        r_matrix, _ = get_rotation_matrix(self.prev_rvec)
+        r_matrix, _ = _get_rotation_matrix(self.prev_rvec)
         rotated_x = r_matrix.dot([1,0,0])
-        rotated_y = r_matrix.dot([0,-1,0])
-        rotated_z = r_matrix.dot([0,0,-1])
-
-        # Update 3D plots
-        self.face_point_scatter.setData(
-            pos = facial_points_3D_scaled*FACE_SIZE_RATIO*75,
-            color = YELLOW_COLOR,
-            size = 10,
-            pxMode = True
-        )
-
-        self.rot_x.setData(
-            pos = np.array([[0,0,0], rotated_x])*10,
-            color = BLUE_COLOR, #B
-            width = 10,
-            mode = 'line_strip'
-        )
-
-        self.rot_y.setData(
-            pos = np.array([[0,0,0], rotated_y])*10,
-            color = GREEN_COLOR, #G
-            width = 10,
-            mode = 'line_strip'
-        )
-
-        self.rot_z.setData(
-            pos = np.array([[0,0,0], rotated_z])*10,
-            color = RED_COLOR, #R
-            width = 10,
-            mode = 'line_strip'
-        )
+        rotated_y = r_matrix.dot([0,1,0])
+        rotated_z = r_matrix.dot([0,0,1])
 
     def start(self):
         if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):

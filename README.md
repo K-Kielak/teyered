@@ -2,7 +2,7 @@
 
 Machine Learning framework for tiredness detection.
 
-The following sections accompany the code and explains in depth the concepts required to understand it.
+The following sections accompany the code and explain in depth the concepts required to understand it.
 
 ## Facial features extraction
 
@@ -59,18 +59,85 @@ Camera has its own **intrinsic parameters** - focal length, optical center and d
 
 **TODO:** Currently, we're using approximation of the intrinsic parameters from https://www.learnopencv.com/approximate-focal-length-for-webcams-and-cell-phone-cameras/. Custom calibration using the provided class and proper calibration images should give better results than current approximation. I personally use MacBook Pro built-in camera, its parameters are not disclosed by Apple afaik. More accurate camera parameters - more accurate head pose estimation.
 
+## Face model and coordinates
+
+Dlib uses the following convention for face points:
+
+<p align="center">
+    <img src="https://www.pyimagesearch.com/wp-content/uploads/2017/04/facial_landmarks_68markup.jpg" width=500>
+</p>
+
+* **Jaw:** [1-17]
+* **Left eyebrow:** [18-22]
+* **Right eyebrow:** [23-27]
+* **Nose:** [28-36] (**tip of the nose:** 31)
+* **Left eye:** [37-42]
+* **Right eye:** [43-48]
+* **Mouth:** [49-64]
+
+Image plane coordinates are as follows (px, 500 stands for `UNIVERSAL_RESIZE` variable in `config.py`):
+
+<p align="center">
+    <img src="readme_images/image_plane_coord.png" width=200>
+</p>
+
+
+We use 3D face model from <a href="https://github.com/TadasBaltrusaitis/OpenFace">here</a> (we will need to develop our own version as the license is incorrect for us).
+
+<p align="center">
+    <img src="readme_images/face_3D.gif" width=400>
+</p>
+
+The following are the `face_model.txt` coordinates:
+
+<p align="center">
+    <img src="readme_images/face_3D_coord.png">
+</p>
+
+Thus, to plot the head pose orientation in a "human friendly way", we plot lines from (0,0,0) to (1,0,0), (0,-1,0) and (0,0,-1) in both 2D and 3D. No transformation would mean having 0&deg; pitch, roll and yaw.
+
+The following are the `face_model.txt` and 2D facial points on image plane coordinates to illustrate the relation:
+
+<p align="center">
+    <img src="readme_images/face_3D_2D.png">
+</p>
+
+* Red: x-axis
+* Green: y-axis
+* Blue - z-axis
+
+We could rotate both facial points and model points 180&deg; around x-axis (red) to get a more "human readable and intuitive" representation of both angles and axis, but this is not necessary. Model is adjusted according to the way image plane works (and thus facial points are obtained).
+
+### face_model_processing.py
+
+* `optimize_face_model(facial_points, model_points)`
+    * **Description:** Optimize the model points so that the shape resembles the one of the person (for example: eye width, eye-nose-eye distance etc.). Currently, it only normalizes the coordinates of the points (shift and scale) and adds the third dimension to facial points.
+    
+    * **TODO:** Delete and rewrite to something more sophisticated
+
+* `get_ground_truth(frame, facial_ponts_extractor)`
+    * **Description:** Dummy function to detect the facial points from a frame where roll, yaw and pitch are all supposed to be 0 ("ground truth" picture).
+
+    * **TODO:** Delete and rewrite to something more sophisticated
+
+**TODO:** Move some methods from pose.py (for example loading the head pose from the `.txt` file)
+
 ## Head pose estimation
 
 We use a single monocular RGB camera to accurately track the 3D position and rotations of the face in space. While this, in principle, is a simple PnP problem, we combine facial features extraction, Kalman filter and tuned PnP algorithm to achieve high accuracy. To estimate head pose, we need:
 
 * 2D image plane coordinates of the facial landmarks (we get this from `points_extractor.py`).
-* 3D model/world (in our case model) coordinates of the face. I got this from <a href="https://github.com/TadasBaltrusaitis/OpenFace">here</a> (we will need to develop our own version as the license is incorrect for us).
+* 3D model/world (in our case model) coordinates of the face.
 
-This is the model both 2D and 3D coordinates use the following points in the following order (these indices are also used in the code, but they start from 1 in the below image, so of course the numbering of the array indices and the model indices will differ by 1):
+Points we currently use for head pose estimation (these are the points which we assume only change when head pose changes):
 
-<p align="center">
-    <img src="data:image/png;base64,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">
-</p>
+* **Jaw:** [1-17]
+* **Nose:** [28-36]
+* **Left eye (corners):** 37, 40
+* **Right eye (corners):** 43, 46
+* **Mouth (corners):** 49, 55
+
+Thus, other points are assumed to have no effect on head pose and could be changed at static head pose (for example - moving eyebrows up and down while not moving the head).
 
 ### pose.py
 
@@ -83,7 +150,7 @@ This is the model both 2D and 3D coordinates use the following points in the fol
     * **Description:** Rotation vector is a convenient and most compact representation of a rotation matrix (since any rotation matrix has just 3 degrees of freedom). The direction of that vector indicates the axis of rotation, while the length (or “norm”) of the vector gives the angle. A good description of this is this <a href="https://stackoverflow.com/a/13824496/7343355">stackoverflow answer</a>. Basically, it is an example of axis-angle representation (image below) and we may want to convert from this representation to rotation matrix and then euler angles (human readability or other reasons). More on this <a href="https://en.wikipedia.org/wiki/Rotation_formalisms_in_three_dimensions">here</a>. Thus, we just use in-built function `cv2.Rodrigues()` to convert to matrix.
 
     <p align="center">
-        <img src="https://i.stack.imgur.com/SvTtB.png">
+        <img src="https://i.stack.imgur.com/SvTtB.png" width=250>
     </p>
 
 * `_get_euler_angles(rotation_matrix, translation_vector)`
@@ -93,7 +160,7 @@ This is the model both 2D and 3D coordinates use the following points in the fol
         <img src="https://www.researchgate.net/profile/Desmond_Fitzgerald3/publication/275771788/figure/fig1/AS:294452435406864@1447214339279/The-Euler-angles-Roll-Pitch-and-Yaw-Prior-to-magnetic-compensation-the-recorded.png">
     </p>
 
-    * **TODO:** Double check the order of Euler angles.
+    * **TODO:** Check the order of Euler angles (pretty sure yaw, pitch, roll are ZYX)
 
 * `_get_camera_world_coord(rotation_matrix, t_vector)`
     * **Description:** <a href="https://answers.opencv.org/question/133855/does-anyone-actually-use-the-return-values-of-solvepnp-to-compute-the-coordinates-of-the-camera-wrt-the-object-in-the-world-space/">Link to the explanation</a>. Basically "the return values from `cv2.solvePnP()` are the rotation and translation of the object in camera coordinate system." We can use these return values to compute camera pose w.r.t. the object in the world space: invert the rotation (transpose), then the translation is the negative of the rotated translation. For example, if the object is static and the camera is moving, we can use this to determine the camera movement.
@@ -101,7 +168,7 @@ This is the model both 2D and 3D coordinates use the following points in the fol
     * **TODO:** Do 3D live and prerecorded UI for this
 
 * `_choose_pose_points(facial_points)` and `_prepare_face_model()`
-    * **Description:** Preparing face model is just extracting the relevant features from the model file (`resources/face_model.txt`). We then chose the points (obtained from the model or detection) which we will be using to solve PnP.
+    * **Description:** Extracting the relevant points for pose estimation from the model file (`resources/face_model.txt`) which was described earlier in this section. We then chose the points (obtained from the model or detection) which we will be using to solve PnP.
 
     * **TODO:** Put the chosen points in `config.py` for readability
 
@@ -116,7 +183,9 @@ This is the model both 2D and 3D coordinates use the following points in the fol
 
 * Try different points for pose estimation, see which one gives the best results
 
-* Fit the face model for each person personally using structure from motion (SfM) or other means
+* Try to account for opening the mouth (jaw points are then also affected) etc.
+
+* Sometimes `pose.py` gives wrong rotation values - roll is around 180&deg; instead of 0&deg; which doesn't make any sense. This can be seen particularly well in `live_3D.py`. Need to account for this somehow.
 
 ## Normalization of eye points
 
@@ -136,9 +205,13 @@ This can be used on any frame and we don't need to concern ourselves with anythi
     <img src="readme_images/eye_normalization.png">
 </p>
 
-As seen in the above photo, we can clearly notice how half closed gives a smaller area compared to ground truth. This can be done on any face angle using the rotation and translation vectors we obtained, thus accounting for all types of head movements.
+As seen in the above photo, we can clearly notice how half closed detected points give a smaller area compared to model ("ground truth"). This can be done on any face angle using the rotation and translation vectors we obtained, thus accounting for all types of head movements. The corners should theoretically be at the same place for both types of points, but this is not achieved because of accuracy of head pose estimation and face model being too generic.
 
 * **TODO:** Fix the way coordinates are stored and optimize `face_model.txt`, as currently it's a very approximate model.
+
+## 3D visualization software
+
+Currently we're using `pyqtgraph`to plot the 3D visualizations. This python library uses OpenGL for 3D object rendering and the application itself is a Qt app. However, there's a known bug (descibred <a href="">here</a>) which basically means that on some devices (like Macs) we can only use 1/4th of the display.
 
 ## Example logic flow
 

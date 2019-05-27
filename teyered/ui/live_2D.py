@@ -4,12 +4,12 @@ import numpy as np
 from teyered.config import CAMERA_MATRIX, DIST_COEFFS, UNIVERSAL_RESIZE
 from teyered.head_pose.camera_model import CameraModel
 from teyered.io.image_processing import draw_pose_frame, draw_facial_points_frame, gray_image, resize_image, write_angles_frame, draw_projected_points, draw_projected_points_frame
-from teyered.head_pose.pose import estimate_pose_live, _prepare_face_model, _prepare_original_face_model
+from teyered.head_pose.pose import estimate_pose_live
 from teyered.data_processing.points_extractor import FacialPointsExtractor
-from teyered.io.files import load_video, save_video
+from teyered.io.files import load_video, save_video, load_image
 
 from teyered.data_processing.eye_normalization import project_eye_points_live, compare_projected_facial
-
+from teyered.head_pose.face_model_processing import load_face_model, optimize_face_model, get_ground_truth
 
 VERTICAL_LINE = "\n-----------------------\n"
 
@@ -19,6 +19,9 @@ cap = cv2.VideoCapture(0)
 
 DISPLAY_OPTION = None
 
+GROUND_TRUTH_FRAME = 'ground_truth/frame.jpg'
+
+
 def main():
     print('\nTEYERED: live 2D')
 
@@ -27,8 +30,12 @@ def main():
     # Setup objects
     camera_model = CameraModel()
     points_extractor = FacialPointsExtractor()
-    model_points = _prepare_face_model()
-    model_points_all = _prepare_original_face_model()
+
+    # Setup model points
+    model_points_original = load_face_model()
+    facial_points_ground_truth = get_ground_truth(load_image(GROUND_TRUTH_FRAME), points_extractor)
+    (model_points_optimized, _, model_points_norm) = optimize_face_model(facial_points_ground_truth, model_points_original)
+    model_points = model_points_optimized # Set model points here
 
     print(VERTICAL_LINE)
     print('2. Calibrating camera...')
@@ -108,7 +115,7 @@ def main():
         r_vector, t_vector, angles, camera_world_coord = estimate_pose_live(facial_points, prev_rvec, prev_tvec, model_points)
 
         # Projecting eye points
-        model_points_projected = project_eye_points_live(model_points_all, r_vector, t_vector)
+        model_points_projected = project_eye_points_live(model_points, r_vector, t_vector)
 
         # Calculate eye closedness
         closedness_left = compare_projected_facial(model_points_projected[36:42], facial_points[36:42])
