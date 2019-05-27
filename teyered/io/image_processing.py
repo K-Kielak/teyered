@@ -39,6 +39,10 @@ def draw_pose(frames, facial_points_all, r_vectors_all, t_vectors_all,
     for i in range(0, len(frames)):
         edited_frame = frames[i]
 
+        if facial_points_all[i] == []:
+            edited_frames.append(edited_frame)
+            continue
+
         rot_x, _ = cv2.projectPoints(np.array([(1.0, 0.0, 0.0)]),
                                      r_vectors_all[i], t_vectors_all[i],
                                      camera_matrix, dist_coeffs)
@@ -78,6 +82,11 @@ def draw_facial_points(frames, facial_points_all):
 
     for i in range(0, len(frames)):
         edited_frame = frames[i]
+
+        if facial_points_all[i] == []:
+            edited_frames.append(edited_frame)
+            continue
+
         for point in facial_points_all[i]:
             cv2.circle(edited_frame, (int(point[0]), int(point[1])),
                        1, (0, 255, 0), -1)
@@ -100,6 +109,11 @@ def draw_projected_points(frames, projected_points):
 
     for i in range(0, len(frames)):
         edited_frame = frames[i]
+
+        if projected_points[i] == []:
+            edited_frames.append(edited_frame)
+            continue
+
         for point in projected_points[i]:
             cv2.circle(edited_frame, (int(point[0][0]), int(point[0][1])), 1, (0, 0, 255), -1)
         edited_frames.append(edited_frame)
@@ -113,7 +127,12 @@ def write_angles(frames, angles_all, color):
     for i, frame in enumerate(frames):
         edited_frame = frame
 
-        angles_all = np.around(angles_all, decimals=1)
+        if angles_all[i] == []:
+            edited_frames.append(edited_frame)
+            continue
+
+        print(angles_all[i])
+        angles_all[i] = np.around(angles_all[i], decimals=1)
 
         angle_text_yaw = f'yaw: {angles_all[i][0][0]}'
         angle_text_pitch = f'pitch: {angles_all[i][1][0]}'

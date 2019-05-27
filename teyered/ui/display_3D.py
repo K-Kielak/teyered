@@ -17,11 +17,11 @@ import math
 from teyered.config import CAMERA_MATRIX, DIST_COEFFS, UNIVERSAL_RESIZE
 from teyered.head_pose.camera_model import CameraModel
 from teyered.io.image_processing import draw_pose_frame, draw_facial_points_frame, gray_image, resize_image, write_angles_frame
-from teyered.head_pose.pose import estimate_pose_live, _prepare_face_model, _get_rotation_matrix, _prepare_original_face_model, _choose_pose_points
+from teyered.head_pose.pose import estimate_pose_live, get_rotation_matrix
 from teyered.data_processing.points_extractor import FacialPointsExtractor
 from teyered.io.files import load_video, load_image
 
-from teyered.head_pose.face_model_processing import optimize_face_model, get_ground_truth
+from teyered.head_pose.face_model_processing import optimize_face_model, get_ground_truth, load_face_model
 
 import time
 
@@ -34,6 +34,10 @@ cap = cv2.VideoCapture(0)
 
 GROUND_TRUTH_FRAME = 'ground_truth/frame.jpg'
 
+RED_COLOR = (1.0, 0.0, 0.0, 1.0)
+GREEN_COLOR = (0.0, 1.0, 0.0, 1.0)
+BLUE_COLOR = (0.0, 0.0, 1.0, 1.0)
+YELLOW_COLOR = (1.0, 1.0, 0.0, 1.0)
 
 class Live3D():
 
@@ -187,28 +191,26 @@ class Live3D():
         self.frame_count = 0
         self.cap = cv2.VideoCapture(0)
 
-        o_model_points_all = _prepare_original_face_model()
-        ground_truth = get_ground_truth(load_image(GROUND_TRUTH_FRAME), self.points_extractor)
-        (model_points_all, facial_points_z, model_points_z) = optimize_face_model(ground_truth, o_model_points_all)
+        # Setup model points
+        model_points_original = load_face_model()
+        facial_points_ground_truth = get_ground_truth(load_image(GROUND_TRUTH_FRAME), self.points_extractor)
+        (model_points_optimized, facial_points_norm, model_points_norm) = optimize_face_model(facial_points_ground_truth, model_points_original)
+        self.model_points = model_points_optimized # Set model points here
 
-        self.model_points = _choose_pose_points(model_points_all)
+        print(model_points_optimized[37])
 
-        """
         self.model_points_scatter.setData(
-            pos = model_points_all*2,
-            color = (0.5, 0.0, 0.0, 1.0), #R
+            pos = model_points_optimized*2,
+            color = RED_COLOR,
             size = 10,
             pxMode = True
         )
-        """
-        """
         self.o_model_points_scatter.setData(
-            pos = model_points_z*2,
-            color = (0.0, 0.5, 0.0, 1.0), #G
+            pos = model_points_norm*2,
+            color = GREEN_COLOR,
             size = 10,
             pxMode = True
         )
-        """
         """
         self.to_model_points_scatter.setData(
             pos = o_model_points_all*0.025,
@@ -219,12 +221,12 @@ class Live3D():
         """
         """
         self.facial_points_scatter.setData(
-            pos = facial_points_z*2,
-            color = (0.5, 0.0, 0.0, 1.0), #BG
+            pos = facial_points_norm*2,
+            color = BLUE_COLOR,
             size = 10,
             pxMode = True
         )
-        """ 
+        """
         """
         old_model = np.array([[0.0,0.0,0.0],[0.0,-330.0, -65.0],[-225.0,170.0,-135.0], [225.0,170.0,-135.0],[-150.0,-150.0,-125.0],[150.0,-150.0,-125.0]])
         self.old_face_model_scatter.setData(

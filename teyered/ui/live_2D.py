@@ -4,11 +4,11 @@ import numpy as np
 from teyered.config import CAMERA_MATRIX, DIST_COEFFS, UNIVERSAL_RESIZE
 from teyered.head_pose.camera_model import CameraModel
 from teyered.io.image_processing import draw_pose_frame, draw_facial_points_frame, gray_image, resize_image, write_angles_frame, draw_projected_points, draw_projected_points_frame
-from teyered.head_pose.pose import estimate_pose_live
+from teyered.head_pose.pose import estimate_pose_live, choose_pose_points
 from teyered.data_processing.points_extractor import FacialPointsExtractor
 from teyered.io.files import load_video, save_video, load_image
 
-from teyered.data_processing.eye_normalization import project_eye_points_live, compare_projected_facial
+from teyered.data_processing.eye_normalization import project_eye_points_live, compare_projected_facial, calculater_reprojection_error_live
 from teyered.head_pose.face_model_processing import load_face_model, optimize_face_model, get_ground_truth
 
 VERTICAL_LINE = "\n-----------------------\n"
@@ -36,6 +36,9 @@ def main():
     facial_points_ground_truth = get_ground_truth(load_image(GROUND_TRUTH_FRAME), points_extractor)
     (model_points_optimized, _, model_points_norm) = optimize_face_model(facial_points_ground_truth, model_points_original)
     model_points = model_points_optimized # Set model points here
+
+    pose_model_points = choose_pose_points(model_points)
+
 
     print(VERTICAL_LINE)
     print('2. Calibrating camera...')
@@ -115,14 +118,19 @@ def main():
         r_vector, t_vector, angles, camera_world_coord = estimate_pose_live(facial_points, prev_rvec, prev_tvec, model_points)
 
         # Projecting eye points
-        model_points_projected = project_eye_points_live(model_points, r_vector, t_vector)
+        model_points_projected = project_eye_points_live (pose_model_points, r_vector, t_vector)
 
+        # Calculate reprojection error
+        error = calculater_reprojection_error_live(choose_pose_points(facial_points), model_points_projected) / UNIVERSAL_RESIZE
+        print(f'Reprojection error: {error}')
+        
+        """
         # Calculate eye closedness
         closedness_left = compare_projected_facial(model_points_projected[36:42], facial_points[36:42])
         closedness_right = compare_projected_facial(model_points_projected[42:48], facial_points[42:48])
-
         print(f'Closedness left: {closedness_left}')
         print(f'Closedness right: {closedness_right}')
+        """
 
         # Image processing
         if (DISPLAY_OPTION == 'a' or DISPLAY_OPTION == 'c'):

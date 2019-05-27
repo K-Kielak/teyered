@@ -10,3 +10,6 @@ logic.py
 *.avi
 *.mp4
 .vscode/
+*.xlsx
+*.csv
+*.jpg

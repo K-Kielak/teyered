@@ -98,8 +98,9 @@ def estimate_pose(facial_points_all, model_points):
     model_points_pose = choose_pose_points(model_points)
 
     for facial_points in facial_points_all:
+        print(facial_points)
         # No facial points were detected for that frame, skip and reset
-        if facial_points.shape == (0,):
+        if facial_points == []:
             r_vectors_all.append([])
             t_vectors_all.append([])
             angles_all.append([])

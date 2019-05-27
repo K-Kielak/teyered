@@ -75,6 +75,8 @@ Dlib uses the following convention for face points:
 * **Right eye:** [43-48]
 * **Mouth:** [49-64]
 
+From a person's perspective, your right eye is left eye in this diagram.
+
 Image plane coordinates are as follows (px, 500 stands for `UNIVERSAL_RESIZE` variable in `config.py`):
 
 <p align="center">
