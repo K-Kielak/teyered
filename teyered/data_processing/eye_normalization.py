@@ -34,7 +34,7 @@ def project_eye_points(frames, facial_points_all, model_points, r_vectors_all, t
     :return: Array of projected model points at each frame
     """
     model_points_projected_all = []
-
+    
     frame_count = 0
     for frame in frames:
         if facial_points_all[frame_count] == []:

@@ -33,9 +33,9 @@ def main():
 
     # Setup model points
     model_points_original = load_face_model()
-    facial_points_ground_truth = get_ground_truth(load_image(GROUND_TRUTH_FRAME), points_extractor)
-    (model_points_optimized, _, model_points_norm) = optimize_face_model(facial_points_ground_truth, model_points_original)
-    model_points = model_points_optimized # Set model points here
+    #facial_points_ground_truth = get_ground_truth(load_image(GROUND_TRUTH_FRAME), points_extractor)
+    (model_points_optimized, _, model_points_norm) = optimize_face_model(model_points_original, model_points_original)
+    model_points = model_points_norm # Set model points here
 
     pose_model_points = choose_pose_points(model_points)
 

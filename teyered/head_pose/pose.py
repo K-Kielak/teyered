@@ -76,7 +76,7 @@ def get_camera_world_coord(rotation_matrix, t_vector):
     camera_pose_world = -np.matrix(rotation_matrix).T * np.matrix(t_vector)
     return camera_pose_world.reshape(1, -1)
 
-def estimate_pose(facial_points_all, model_points):
+def estimate_pose(facial_points_all, model_points, prev_rvec = None, prev_tvec = None):
     """
     Estimate 3D pose of an object in camera coordinates from given facial points
     :param facial_points_all: List of facial points coordinates for all frames
@@ -90,15 +90,10 @@ def estimate_pose(facial_points_all, model_points):
     angles_all = []
     camera_world_coord_all = []
 
-    # Variables for PnP calculation based on previous calculations
-    prev_rvec = None
-    prev_tvec = None
-
     # Choose model points
     model_points_pose = choose_pose_points(model_points)
 
     for facial_points in facial_points_all:
-        print(facial_points)
         # No facial points were detected for that frame, skip and reset
         if facial_points == []:
             r_vectors_all.append([])
