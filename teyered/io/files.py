@@ -154,3 +154,56 @@ def save_points(file_path, data):
             f.write(f'{d[0]},{d[1]}\n')
 
     logger.info('Data has been successfully written to file')
+
+# The following methods are for csv_exporter.py
+
+def initialize_csv(error_path, pose_path, fp_path):
+    # Facial points
+    with open(fp_path, 'w') as f:
+        initialization_string = 'frame,'
+        
+        for i in range(0,68):
+            initialization_string += f'{i+1}x,{i+1}y,'
+        initialization_string  = initialization_string[:-1] + '\n'
+        
+        f.write(f'{initialization_string}')
+
+    # Pose
+    with open(pose_path, 'w') as f:
+        initialization_string = 'frame,yaw,pitch,roll\n'
+        f.write(initialization_string)
+
+    # Errors
+    with open(error_path, 'w') as f:
+        initialization_string = 'frame,error\n'
+        f.write(initialization_string)
+
+def save_error_csv(file_path, frames, data):
+    with open(file_path, 'a') as f:
+        for i, d in enumerate(data):
+            d_string = f'{frames[i]},{d[1]}\n'            
+            f.write(d_string)
+
+def save_pose_csv(file_path, frames, data):
+    with open(file_path, 'a') as f:
+        for i, d in enumerate(data):
+            d_string = f'{frames[i]},'
+
+            for z in d:
+                d_string += f'{z[0]},'
+            d_string  = d_string[:-1] + '\n'
+            
+            f.write(d_string)
+
+def save_facial_points_csv(file_path, frames, data):
+    with open(file_path, 'a') as f:
+        # Time steps
+        for i, d in enumerate(data):
+            d_string = f'{frames[i]},'
+
+            # Points
+            for z in d:
+                d_string += f'{z[0]},{z[1]},' # x,y coordinates
+            d_string  = d_string[:-1] + '\n'
+                       
+            f.write(d_string)

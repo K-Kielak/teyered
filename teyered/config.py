@@ -27,6 +27,9 @@ RIGHT_EYE_COORDINATES = (36, 42)
 LEFT_EYE_COORDINATES = (42, 48)
 MOUTH_COORDINATES = (48, 68)
 
+# How many consecutive frames to track before redetection
+TRACKING_LENGTH = 5
+
 # Need to know aspect ratio
 CAMERA_MATRIX = np.array(
                              [[962.51477715, 0, 509.06946124],

@@ -5,13 +5,10 @@ import dlib
 from imutils import face_utils, resize
 import numpy as np
 
-from teyered.config import IMAGE_UPSAMPLE_FACTOR, PREDICTOR_FILEPATH
+from teyered.config import IMAGE_UPSAMPLE_FACTOR, PREDICTOR_FILEPATH, TRACKING_LENGTH
 
 
 logger = logging.getLogger(__name__)
-
-# How many consecutive frames to track before redetection
-TRACKING_LENGTH = 5
 
 
 class FacialPointsExtractor:
@@ -66,7 +63,7 @@ class FacialPointsExtractor:
             facial_points = face_utils.shape_to_np(facial_points)
             return facial_points
 
-    def extract_facial_points(self, frames):
+    def extract_facial_points(self, frames, previous_frame = None, previous_points = None, frame_count = 0):
         """
         Extract facial points from a video sequence using detection and tracking
         :param frames: All frames (array of numpy arrays) to be analysed
@@ -78,10 +75,6 @@ class FacialPointsExtractor:
 
         facial_points_all = []
 
-        previous_frame = None
-        previous_points = None
-
-        frame_count = 0
         for frame in frames:
             detected_facial_points = self.detect_facial_points(frame)
 
@@ -111,7 +104,7 @@ class FacialPointsExtractor:
             facial_points_all.append(previous_points)
 
         logger.debug('Facial points were successfully extracted from the image')
-        return facial_points_all
+        return (facial_points_all, frame_count)
 
     def extract_facial_points_live(self, previous_frame, previous_points, frame, frame_count):
 

@@ -33,9 +33,9 @@ def main():
 
     # Setup model points
     model_points_original = load_face_model()
-    facial_points_ground_truth = get_ground_truth(load_image(GROUND_TRUTH_FRAME), points_extractor)
-    (model_points_optimized, _, model_points_norm) = optimize_face_model(facial_points_ground_truth, model_points_original)
-    model_points = model_points_optimized # Set model points here
+    #facial_points_ground_truth = get_ground_truth(load_image(GROUND_TRUTH_FRAME), points_extractor)
+    (model_points_optimized, _, model_points_norm) = optimize_face_model(model_points_original, model_points_original)
+    model_points = model_points_norm # Set model points here
 
     print(VERTICAL_LINE)
     print('2. Calibrating camera...')
@@ -46,14 +46,10 @@ def main():
     print('3. Loading and analysing video...')
     # Load and analyse video
     frames_original = load_video(VIDEO_PATH)
-    print('1')
     frames_resized = resize_video(frames_original)
     frames = gray_video(frames_resized)
-    print('2')
-    facial_points_all = points_extractor.extract_facial_points(frames)
-    print('3')
+    facial_points_all, _ = points_extractor.extract_facial_points(frames)
     r_vectors_all, t_vectors_all, angles_all, camera_world_coord_all = estimate_pose(facial_points_all, model_points)
-    print('4')
     model_points_projected_all = project_eye_points(frames, facial_points_all, model_points, r_vectors_all, t_vectors_all)
 
     print(VERTICAL_LINE)
