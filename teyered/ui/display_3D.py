@@ -193,11 +193,9 @@ class Live3D():
 
         # Setup model points
         model_points_original = load_face_model()
-        facial_points_ground_truth = get_ground_truth(load_image(GROUND_TRUTH_FRAME), self.points_extractor)
-        (model_points_optimized, facial_points_norm, model_points_norm) = optimize_face_model(facial_points_ground_truth, model_points_original)
+        #facial_points_ground_truth = get_ground_truth(load_image(GROUND_TRUTH_FRAME), self.points_extractor)
+        (model_points_optimized, facial_points_norm, model_points_norm) = optimize_face_model(model_points_original, model_points_original)
         self.model_points = model_points_optimized # Set model points here
-
-        print(model_points_optimized[37])
 
         self.model_points_scatter.setData(
             pos = model_points_optimized*2,

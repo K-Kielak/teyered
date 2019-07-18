@@ -60,7 +60,7 @@ def main():
     write_angles(frames_resized, angles_all, TEXT_COLOR)
     draw_projected_points(frames_resized, model_points_projected_all)
     errors = calculater_reprojection_error(frames_resized, facial_points_all, model_points_projected_all)
-    save_points('errors.csv', errors)
+    save_points('errors_1.csv', errors)
 
     print(VERTICAL_LINE)
     input("5. Video is ready. Press Enter to view...")
