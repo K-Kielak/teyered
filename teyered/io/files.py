@@ -2,11 +2,18 @@ import logging
 import os
 
 import cv2
+import numpy as np
 
 from teyered.config import UNIVERSAL_RESIZE
+from teyered.io.image_processing import display_image, display_video
 
 
 logger = logging.getLogger(__name__)
+
+
+"""
+Methods and classes for solving memory problem - use with large files
+"""
 
 
 class VideoGenerator:
@@ -46,7 +53,7 @@ class VideoGenerator:
         if not self.is_open():
             raise IOError('Cannot close the video, '
                           'it is not open in the first place.')
-        logger.info(f'\Closing video {self._vid_path}:')
+        logger.info(f'Closing video {self._vid_path}:')
         self._vid.release()
 
     def get_next_frame(self):
@@ -92,14 +99,22 @@ class VideoGenerator:
         curr_frame_num = self._vid.get(cv2.CAP_PROP_POS_FRAMES)
         return curr_frame_num == self._vid_frames_count
 
+
+"""
+Methods and classes for writing directly to app memory - avoid for large files
+"""
+
+
 def load_video(video_file_path):
     """
-    Temporary (don't have time)
+    Load the whole video into memory
+    :param video_file_path: Relative path to the video
+    :return: Frames of the video
     """
     frames = []
 
     cap = cv2.VideoCapture(video_file_path)
-    video_frames_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    video_frames_count = extract_video_information(cap)['frames_count']
 
     while cap.isOpened():
         if cap.get(1) == video_frames_count:
@@ -109,56 +124,116 @@ def load_video(video_file_path):
         frames.append(frame)
 
     cap.release()
+
+    if logger.isEnabledFor(logging.DEBUG):
+        display_video(frame)
+
     cv2.destroyAllWindows()
-    return frames
+    
+    logger.info(f'Video successfully loaded from {video_file_path}')
+    return np.array(frames)
 
 def load_image(image_file_path):
     """
-    Load existing image from a specified file path into the tool
-    :param image_file_path: Full file path to the image
-    :return: Frame of the image
+    Load existing image into memory
+    :param image_file_path: Relative file path to the image
+    :return: Image
     """
     frame = cv2.imread(image_file_path)
-    if logger.isEnabledFor(logging.DEBUG):
-        cv2.imshow(image_file_path, frame)
-        cv2.waitKey(0)
 
+    if logger.isEnabledFor(logging.DEBUG):
+        display_image(frame)
+
+    logger.info(f'Image successfully loaded from {image_file_path}')
     return frame
 
-def save_video(frames, name, format):
+def save_video(frames, name, format, folder = ''):
+    """
+    Save video from memory to a file
+    :param frames: Frames in memory
+    :param name: Name without the extension
+    :param format: Format of the file, either mp4 or avi
+    :param folder: Absolute path to the folder (default - working directory)
+    """
+    file_path = os.path.join(folder, f'{name}.{format}')
+
     if format == 'mp4':
-        out = cv2.VideoWriter(f'{name}.{format}', cv2.VideoWriter_fourcc(*'MP4V'),
+        out = cv2.VideoWriter(file_path, cv2.VideoWriter_fourcc(*'MP4V'),
                               24, (frames[0].shape[1],frames[0].shape[0]))
     elif format == 'avi':
-        out = cv2.VideoWriter(f'{name}.{format}', cv2.VideoWriter_fourcc('M','J','P','G'),
+        out = cv2.VideoWriter(file_path, cv2.VideoWriter_fourcc('M','J','P','G'),
                               24, (frames[0].shape[1],frames[0].shape[0]))
     else:
-        return
+        raise ValueError('Format of the video can only be mp4 or avi')
 
     for frame in frames:
         out.write(frame)
 
     out.release()
+    logger.info(f'Video successfully saved as {file_path}')
 
-def save_points(file_path, data):
+def save_image(frame, name, format, folder = ''):
     """
-    Write (x,y) points to the specified file path
-    :param file_path: Full path to the file
-    :param data: Data in format [(x1, y1), ... ,(xn, yn)]
+    Save image from memory to a file in a working directory
+    :param frame: Image in memory
+    :param name: Name without the extension
+    :param format: Format of the image, either jpg or png
+    :param folder: Absolute path to the folder (default - working directory)
     """
-    logger.info(f'Writing data to file {file_path}')
+    file_path = os.path.join(folder, f'{name}.{format}')
 
-    with open(file_path, 'w') as f:
-        f.write('x,y\n')
-        for d in data:
-            f.write(f'{d[0]},{d[1]}\n')
+    if not format == 'jpg' or not format == 'png':
+        raise ValueError('Format of the image can only be jpg or png')
+    
+    cv2.imwrite(file_path, frame)
+    logger.info(f'Image successfully saved as {file_path}')
 
-    logger.info('Data has been successfully written to file')
+def extract_video_information(video):
+    """
+    :param video: cv2.VideoCapture object
+    :return: Dictionary of video parameters
+    """
+    video_params = {}
 
-# The following methods are for csv_exporter.py
+    video_params['width'] = video.get(cv2.CAP_PROP_FRAME_WIDTH)
+    video_params['height'] = video.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    video_params['fps'] = int(video.get(cv2.CAP_PROP_FPS))
+    video_params['frames_count'] = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
+    
+    logger.info(f'Width (px): {video_params["width"]}')
+    logger.info(f'Height (px): {video_params["height"]}')
+    logger.info(f'FPS: {video_params["fps"]}')
+    logger.info(f'Frames count: {video_params["frames_count"]}')
+
+    logger.info('Video parameters were successfully fetched')
+    return video_params
+
+
+"""
+Methods for saving specific information to csv files
+"""
+
 
 def initialize_csv(error_path, pose_path, fp_path):
-    # Facial points
+    """
+    Initialize csv files and their headers for further data storage
+    :param error_path: Relative path to save reprojection error data
+    :param pose_path: Relative path to save pose data
+    :param fp_path: Relative path to save facial points data
+    """
+    # Reprojection error (frame, error)
+    with open(error_path, 'w') as f:
+        initialization_string = 'frame,error\n'
+        f.write(initialization_string)
+    logger.info(f'Error data csv file was successfully initialized at {error_path}')
+        
+    # Pose (frame, yaw, pitch, roll)
+    with open(pose_path, 'w') as f:
+        initialization_string = 'frame,yaw,pitch,roll\n'
+        f.write(initialization_string)
+    logger.info(f'Pose data csv file was successfully initialized at {error_path}')
+    
+    # Facial points (frame, 1x, 1y, 2x, 2y, ..., 68x, 68y)
     with open(fp_path, 'w') as f:
         initialization_string = 'frame,'
         
@@ -167,24 +242,35 @@ def initialize_csv(error_path, pose_path, fp_path):
         initialization_string  = initialization_string[:-1] + '\n'
         
         f.write(f'{initialization_string}')
-
-    # Pose
-    with open(pose_path, 'w') as f:
-        initialization_string = 'frame,yaw,pitch,roll\n'
-        f.write(initialization_string)
-
-    # Errors
-    with open(error_path, 'w') as f:
-        initialization_string = 'frame,error\n'
-        f.write(initialization_string)
+    logger.info(f'Facial points data csv file was successfully initialized at {error_path}')
 
 def save_error_csv(file_path, frames, data):
+    """
+    Save reprojection error to the initialized csv file
+    :param file_path: Initialized path file
+    :param frames: List of frames numbers which are to be saved 
+    :param data: Corresponding reprojection error data
+    """
+    if frames.shape[0] != data.shape[0]:
+        raise ValueError('frames and data array lengths must be the same')
+
     with open(file_path, 'a') as f:
         for i, d in enumerate(data):
             d_string = f'{frames[i]},{d[1]}\n'            
             f.write(d_string)
 
+    logger.info(f'Reprojection error data has been successfully written to {file_path}')
+
 def save_pose_csv(file_path, frames, data):
+    """
+    Save pose data to the initialized csv file
+    :param file_path: Initialized path file
+    :param frames: List of frames numbers which are to be saved 
+    :param data: Corresponding pose data
+    """
+    if frames.shape[0] != data.shape[0]:
+        raise ValueError('frames and data array lengths must be the same')
+
     with open(file_path, 'a') as f:
         for i, d in enumerate(data):
             d_string = f'{frames[i]},'
@@ -195,7 +281,18 @@ def save_pose_csv(file_path, frames, data):
             
             f.write(d_string)
 
+    logger.info(f'Pose data has been successfully written to {file_path}')
+
 def save_facial_points_csv(file_path, frames, data):
+    """
+    Save facial points data to the initialized csv file
+    :param file_path: Initialized path file
+    :param frames: List of frames numbers which are to be saved 
+    :param data: Corresponding facial points data
+    """
+    if frames.shape[0] != data.shape[0]:
+        raise ValueError('frames and data array lengths must be the same')
+
     with open(file_path, 'a') as f:
         # Time steps
         for i, d in enumerate(data):
@@ -207,3 +304,5 @@ def save_facial_points_csv(file_path, frames, data):
             d_string  = d_string[:-1] + '\n'
                        
             f.write(d_string)
+    
+    logger.info(f'Facial points data has been successfully written to {file_path}')
