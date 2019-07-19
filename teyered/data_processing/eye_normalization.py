@@ -3,7 +3,7 @@ import logging
 import cv2
 import numpy as np
 
-from teyered.config import CAMERA_MATRIX, DIST_COEFFS
+from teyered.config import CAMERA_MATRIX, DIST_COEFFS, LEFT_EYE_COORDINATES, RIGHT_EYE_COORDINATES
 from teyered.head_pose.pose import choose_pose_points
 
 
@@ -77,7 +77,7 @@ def calculate_reprojection_error(frames, extracted_points_all, projected_points_
     errors = []
 
     for i, frame in enumerate(frames):
-        if not extracted_points_all[i]:
+        if extracted_points_all[i] is None:
             errors.append((i,0))
         else:
             # Sum of euclidian distances (todo, needs to be rewritten, there's np built-in function)
@@ -138,6 +138,12 @@ def calculate_eye_closedness_live(extracted_points, projected_points):
 
     # (x < 1) == more closed, (x > 1) == more open than usual
     return extracted_area / projected_area
+
+def choose_eye_points(facial_points):
+    left_eye_points = np.array(facial_points[slice(*LEFT_EYE_COORDINATES)])
+    right_eye_points = np.array(facial_points[slice(*RIGHT_EYE_COORDINATES)])
+    return (left_eye_points, right_eye_points)
+
 
 def _calculate_polygon_area(corner_points):
     """

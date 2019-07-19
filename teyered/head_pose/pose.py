@@ -126,6 +126,7 @@ def estimate_pose(facial_points_all, model_points, prev_rvec = None, prev_tvec =
             prev_tvec = None
             continue
 
+        # This may be a bottleneck here, maybe apply on the whole facial_points_all as filter function?
         facial_points_pose = choose_pose_points(facial_points)
 
         r_vector, t_vector = solve_pnp(facial_points_pose, model_points_pose,

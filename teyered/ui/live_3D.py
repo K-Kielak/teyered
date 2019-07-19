@@ -12,21 +12,17 @@ from pyqtgraph.Qt import QtCore, QtGui
 import pyqtgraph.opengl as gl
 import pyqtgraph as pg
 
-from teyered.config import CAMERA_MATRIX, DIST_COEFFS, UNIVERSAL_RESIZE, RED_COLOR_3D, GREEN_COLOR_3D, BLUE_COLOR_3D, YELLOW_COLOR_3D
-from teyered.head_pose.camera_model import CameraModel
+from teyered.config import CAMERA_MATRIX, DIST_COEFFS, RED_COLOR_3D, GREEN_COLOR_3D, BLUE_COLOR_3D, YELLOW_COLOR_3D
+from teyered.data_processing.points_extractor import FacialPointsExtractor
 from teyered.io.image_processing import gray_image, resize_image
 from teyered.head_pose.pose import estimate_pose_live, get_rotation_matrix
-from teyered.data_processing.points_extractor import FacialPointsExtractor
 from teyered.head_pose.face_model_processing import load_face_model, optimize_face_model
+from teyered.head_pose.camera_model import CameraModel
+
 
 VERTICAL_LINE = "\n-----------------------\n"
 
 FACE_SIZE_RATIO = 0.05
-
-RED_COLOR = (1.0, 0.0, 0.0, 1.0)
-GREEN_COLOR = (0.0, 1.0, 0.0, 1.0)
-BLUE_COLOR = (0.0, 0.0, 1.0, 1.0)
-YELLOW_COLOR = (1.0, 1.0, 0.0, 1.0)
 
 
 class Live3D():
@@ -100,7 +96,7 @@ class Live3D():
         self.rot_x = gl.GLLinePlotItem()
         self.rot_x.setData(
             pos = random_points,
-            color = BLUE_COLOR, #B
+            color = BLUE_COLOR_3D,
             width = 10,
             mode = 'line_strip'
         )
@@ -109,7 +105,7 @@ class Live3D():
         self.rot_y = gl.GLLinePlotItem()
         self.rot_y.setData(
             pos = random_points,
-            color = GREEN_COLOR, #G
+            color = GREEN_COLOR_3D,
             width = 10,
             mode = 'line_strip'
         )
@@ -118,7 +114,7 @@ class Live3D():
         self.rot_z = gl.GLLinePlotItem()
         self.rot_z.setData(
             pos = random_points,
-            color = RED_COLOR, #R
+            color = RED_COLOR_3D,
             width = 10,
             mode = 'line_strip'
         )
@@ -128,7 +124,7 @@ class Live3D():
         self.axis_x = gl.GLLinePlotItem()
         self.axis_x.setData(
             pos = np.array([[0,0,0],[1,0,0]]),
-            color = BLUE_COLOR, #B
+            color = BLUE_COLOR_3D,
             width = 10,
             mode = 'line_strip'
         )
@@ -137,7 +133,7 @@ class Live3D():
         self.axis_y = gl.GLLinePlotItem()
         self.axis_y.setData(
             pos = np.array([[0,0,0],[0,-1,0]]),
-            color = GREEN_COLOR, #G
+            color = GREEN_COLOR_3D, #G
             width = 10,
             mode = 'line_strip'
         )
@@ -146,7 +142,7 @@ class Live3D():
         self.axis_z = gl.GLLinePlotItem()
         self.axis_z.setData(
             pos = np.array([[0,0,0],[0,0,-1]]),
-            color = RED_COLOR, #R
+            color = RED_COLOR_3D, #R
             width = 10,
             mode = 'line_strip'
         )
@@ -169,7 +165,7 @@ class Live3D():
 
         # Setup model points (currently no optimization)
         model_points_original = load_face_model() # Keep original points for later use
-        (self.model_points_optimized, _, model_points_normalized) = optimize_face_model(model_points_original, model_points_original)
+        (model_points_optimized, _, model_points_normalized) = optimize_face_model(model_points_original, model_points_original)
         self.model_points = model_points_normalized # Set the actual model points here, must be normalized
 
     def update(self):
@@ -215,7 +211,7 @@ class Live3D():
             self.previous_points = facial_points
 
         # Pose estimation
-        r_vector, t_vector, angles, camera_world_coord = estimate_pose_live(facial_points, self.model_points_optimized, self.prev_rvec, self.prev_tvec)
+        r_vector, t_vector, angles, camera_world_coord = estimate_pose_live(facial_points, self.model_points, self.prev_rvec, self.prev_tvec)
 
         # Print angles
         print(f'yaw: {angles[0][0]}')
@@ -238,12 +234,12 @@ class Live3D():
         facial_points_3D_scaled_y = facial_points_3D_shifted[:,1] / st_dev[1]
         facial_points_3D_scaled_z =  np.zeros((facial_points_3D_shifted.shape[0],))
 
+        # Todo rewrite
         facial_points_3D_scaled = []
         for i in range(0, facial_points_3D_scaled_x.shape[0]):
             facial_points_3D_scaled.append([facial_points_3D_scaled_x[i], facial_points_3D_scaled_y[i], facial_points_3D_scaled_z[i]])
         facial_points_3D_scaled = np.array(facial_points_3D_scaled)
 
-        # This is a mistake with rotation matrix, should be returned
         r_matrix, _ = get_rotation_matrix(self.prev_rvec)
         rotated_x = r_matrix.dot([1,0,0])
         rotated_y = r_matrix.dot([0,-1,0])
@@ -252,28 +248,28 @@ class Live3D():
         # Update 3D plots
         self.face_point_scatter.setData(
             pos = facial_points_3D_scaled*FACE_SIZE_RATIO*75,
-            color = YELLOW_COLOR,
+            color = YELLOW_COLOR_3D,
             size = 10,
             pxMode = True
         )
 
         self.rot_x.setData(
             pos = np.array([[0,0,0], rotated_x])*10,
-            color = BLUE_COLOR,
+            color = BLUE_COLOR_3D,
             width = 10,
             mode = 'line_strip'
         )
 
         self.rot_y.setData(
             pos = np.array([[0,0,0], rotated_y])*10,
-            color = GREEN_COLOR, 
+            color = GREEN_COLOR_3D, 
             width = 10,
             mode = 'line_strip'
         )
 
         self.rot_z.setData(
             pos = np.array([[0,0,0], rotated_z])*10,
-            color = RED_COLOR,
+            color = RED_COLOR_3D,
             width = 10,
             mode = 'line_strip'
         )

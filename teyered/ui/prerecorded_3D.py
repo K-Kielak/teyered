@@ -1,42 +1,36 @@
+import math
 import os
 import sys
+import time
 
 import cv2
 from imutils import face_utils
 import imutils
 import dlib
-
 import numpy as np
-
 from pyqtgraph.Qt import QtCore, QtGui
 import pyqtgraph.opengl as gl
 import pyqtgraph as pg
 
-import math
-
-from teyered.config import CAMERA_MATRIX, DIST_COEFFS, UNIVERSAL_RESIZE
+from teyered.config import CAMERA_MATRIX, DIST_COEFFS, RED_COLOR_3D, GREEN_COLOR_3D, BLUE_COLOR_3D, YELLOW_COLOR_3D, PRERECORDED_VIDEO_FILEPATH
 from teyered.head_pose.camera_model import CameraModel
 from teyered.io.image_processing import draw_pose, draw_facial_points, display_video, gray_video, resize_video, write_angles
 from teyered.head_pose.pose import estimate_pose, _get_rotation_matrix
 from teyered.data_processing.points_extractor import FacialPointsExtractor
 from teyered.io.files import load_video
 
-import time
-
 
 VERTICAL_LINE = "\n-----------------------\n"
 
-VIDEO_PATH = 'test_videos/video.mov'
 FACE_SIZE_RATIO = 0.05
 
 
 class Live3D():
 
     def __init__(self):
-        print('\nTEYERED: prerecorded 3D')
+        print(f'{VERTICAL_LINE}\nTEYERED: live 2D')
 
-        print(VERTICAL_LINE)
-        print('1. Setting up...')
+        print(f'{VERTICAL_LINE}\n1. Setting up...')
         # Set up the QT GUI application
         self.application = QtGui.QApplication([])
 
@@ -48,20 +42,17 @@ class Live3D():
         self.window.show()
 
         # Setup 3D
-        print(VERTICAL_LINE)
-        print("2. Preparing 3D objects...")
+        print(f'{VERTICAL_LINE}\n2. Preparing 3D objects...')
         self._prepare_3D()
 
         # Setup 2D
-        print(VERTICAL_LINE)
-        print("3. Preparing 2D objects...")
+        print(f'{VERTICAL_LINE}\n3. Preparing 2D objects...')
         self._prepare_2D()
 
         # Counter for updates
         self.counter = 0
 
-        print(VERTICAL_LINE)
-        input("6. 3D visualisation is ready. Press Enter to view...")
+        input(f'{VERTICAL_LINE}\n6. 3D visualisation is ready. Press Enter to view...')
 
     def _prepare_3D(self):
         # Background grids for orientation purposes
@@ -74,24 +65,25 @@ class Live3D():
         gy.translate(0, 10, 0)
         self.window.addItem(gy)
         gz = gl.GLGridItem()
-        gz.translate(0, 0, -10)
+        gz.translate(0, 0, 10)
         self.window.addItem(gz)
         gx2 = gl.GLGridItem()
         gx2.rotate(90, 0, 1, 0)
         gx2.translate(10, 0, 0)
         self.window.addItem(gx2)
-        gz2 = gl.GLGridItem()
-        gz2.translate(0, 0, 10)
-        self.window.addItem(gz2)
+        gy2 = gl.GLGridItem()
+        gy2.rotate(90, 1, 0, 0)
+        gy2.translate(0, -10, 0)
+        self.window.addItem(gy2)
 
         # Axis display for orientation purposes
         axis = gl.GLAxisItem()
         self.window.addItem(axis)
 
-        # Set up scatter plot and plot initial points
         random_points = np.zeros((10, 3))
+
+        # Set up scatter plot and plot initial points
         self.face_point_scatter = gl.GLScatterPlotItem()
-        self.face_point_scatter.rotate(-90, 1, 0, 0)
         self.face_point_scatter.setData(
             pos = random_points,
             color = (0.5, 0.0, 0.5, 1.0),
@@ -101,12 +93,11 @@ class Live3D():
         self.window.addItem(self.face_point_scatter)
 
         # 3D face rotation lines
-        random_points_5 = np.zeros((4, 3))
         self.rot_x = gl.GLLinePlotItem()
         self.rot_x.rotate(-90, 1, 0, 0)
         self.rot_x.setData(
             pos = random_points_5,
-            color = (0.0, 1.0, 1.0, 1.0),
+            color = BLUE_COLOR_3D,
             width = 10,
             mode = 'line_strip'
         )
@@ -116,7 +107,7 @@ class Live3D():
         self.rot_y.rotate(-90, 1, 0, 0)
         self.rot_y.setData(
             pos = random_points_5,
-            color = (0.0, 1.0, 1.0, 1.0),
+            color = GREEN_COLOR_3D,
             width = 10,
             mode = 'line_strip'
         )
@@ -126,41 +117,74 @@ class Live3D():
         self.rot_z.rotate(-90, 1, 0, 0)
         self.rot_z.setData(
             pos = random_points_5,
-            color = (0.0, 1.0, 1.0, 1.0),
+            color = RED_COLOR_3D,
             width = 10,
             mode = 'line_strip'
         )
         self.window.addItem(self.rot_z)
 
+        # 3D axis
+        self.axis_x = gl.GLLinePlotItem()
+        self.axis_x.setData(
+            pos = np.array([[0,0,0],[1,0,0]]),
+            color = BLUE_COLOR_3D,
+            width = 10,
+            mode = 'line_strip'
+        )
+        self.window.addItem(self.axis_x)
+
+        self.axis_y = gl.GLLinePlotItem()
+        self.axis_y.setData(
+            pos = np.array([[0,0,0],[0,-1,0]]),
+            color = GREEN_COLOR_3D,
+            width = 10,
+            mode = 'line_strip'
+        )
+        self.window.addItem(self.axis_y)
+
+        self.axis_z = gl.GLLinePlotItem()
+        self.axis_z.setData(
+            pos = np.array([[0,0,0],[0,0,-1]]),
+            color = RED_COLOR_3D,
+            width = 10,
+            mode = 'line_strip'
+        )
+        self.window.addItem(self.axis_z)
+
     def _prepare_2D(self):
         camera_model = CameraModel()
-        points_extractor = FacialPointsExtractor()
+        self.points_extractor = FacialPointsExtractor()
+        self.cap = cv2.VideoCapture(0)
 
-        print(VERTICAL_LINE)
-        print('4. Calibrating camera...')
+        print(f'{VERTICAL_LINE}\n4. Calibrating camera...')
         camera_model.calibrate_custom_parameters(CAMERA_MATRIX, DIST_COEFFS)
 
-        print(VERTICAL_LINE)
-        print('5. Loading and analysing video...')
-        frames_original = load_video(VIDEO_PATH)
+        print(f'{VERTICAL_LINE}\n5. Setting up model points')
+        # Setup model points (currently no optimization)
+        model_points_original = load_face_model() # Keep original points for later use
+        (model_points_optimized, _, model_points_normalized) = optimize_face_model(model_points_original, model_points_original)
+        self.model_points = model_points_normalized # Set the actual model points here, must be normalized
+
+        print(f'{VERTICAL_LINE}\n6. Loading and analysing video...')
+        # Load and analyse video
+        frames_original = load_video(PRERECORDED_VIDEO_FILEPATH)
         frames_resized = resize_video(frames_original)
         frames = gray_video(frames_resized)
-        self.facial_points_all = points_extractor.extract_facial_points(frames)
-        self.r_vectors_all, self.t_vectors_all, self.angles_all, self.camera_world_coord_all = estimate_pose(self.facial_points_all)
+        self.facial_points_all, _ = points_extractor.extract_facial_points(frames)
+        self.r_vectors_all, self.t_vectors_all, self.angles_all, self.camera_world_coord_all = estimate_pose(self.facial_points_all, self.model_points)
+        model_points_projected_all = project_eye_points(frames, facial_points_all, model_points, r_vectors_all, t_vectors_all)
 
-        self.max_counter = len(frames)
+        self.max_counter = frames.shape[0]
 
     def update(self):
         if (self.counter == self.max_counter):
             sys.exit(0)
-            return
 
         # Prepare facial points plot
         facial_points_3D = np.hstack((self.facial_points_all[self.counter], np.zeros((self.facial_points_all[self.counter].shape[0], 1))))
 
         # Shift the points to mean (for changes in left/right of the image)
-        mean = np.mean(facial_points_3D, axis=0)
-        facial_points_3D_shifted = facial_points_3D - mean
+        facial_points_3D_shifted = facial_points_3D - np.mean(facial_points_3D, axis=0)
 
         # Scale for being further or closer to the screen
         st_dev = np.std(facial_points_3D, axis=0)
@@ -168,12 +192,12 @@ class Live3D():
         facial_points_3D_scaled_y = facial_points_3D_shifted[:,1] / st_dev[1]
         facial_points_3D_scaled_z =  np.zeros((facial_points_3D_shifted.shape[0],))
 
+        # Todo rewrite
         facial_points_3D_scaled = []
         for i in range(0, facial_points_3D_scaled_x.shape[0]):
             facial_points_3D_scaled.append([facial_points_3D_scaled_x[i], facial_points_3D_scaled_y[i], facial_points_3D_scaled_z[i]])
         facial_points_3D_scaled = np.array(facial_points_3D_scaled)
 
-        # This is a mistake with rotation matrix, should be returned
         r_matrix, _ = _get_rotation_matrix(self.r_vectors_all[self.counter])
         rotated_x = r_matrix.dot([1,0,0])
         rotated_y = r_matrix.dot([0,1,0])
@@ -182,28 +206,28 @@ class Live3D():
         # Update 3D plots
         self.face_point_scatter.setData(
             pos = facial_points_3D_scaled*FACE_SIZE_RATIO*75,
-            color = (1.0, 1.0, 0.0, 1.0),
+            color = YELLOW_COLOR_3D,
             size = 10,
             pxMode = True
         )
 
         self.rot_x.setData(
             pos = np.array([[0,0,0], rotated_x])*10,
-            color = (0.0, 1.0, 1.0, 1.0),
+            color = BLUE_COLOR_3D,
             width = 10,
             mode = 'line_strip'
         )
 
         self.rot_y.setData(
             pos = np.array([[0,0,0], rotated_y])*10,
-            color = (0.0, 1.0, 1.0, 1.0),
+            color = GREEN_COLOR_3D, 
             width = 10,
             mode = 'line_strip'
         )
 
         self.rot_z.setData(
             pos = np.array([[0,0,0], rotated_z])*10,
-            color = (0.0, 1.0, 0.0, 1.0),
+            color = RED_COLOR_3D,
             width = 10,
             mode = 'line_strip'
         )

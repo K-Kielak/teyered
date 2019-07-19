@@ -2,13 +2,13 @@ import cv2
 import numpy as np
 
 from teyered.config import CAMERA_MATRIX, DIST_COEFFS, UNIVERSAL_RESIZE
-from teyered.head_pose.camera_model import CameraModel
 from teyered.io.image_processing import draw_pose_frame, draw_facial_points_frame, gray_image, resize_image, write_angles_frame, draw_projected_points_frame, display_image
-from teyered.head_pose.pose import estimate_pose_live
-from teyered.data_processing.points_extractor import FacialPointsExtractor
 from teyered.io.files import load_image
-from teyered.data_processing.eye_normalization import project_eye_points_live
+from teyered.data_processing.points_extractor import FacialPointsExtractor
+from teyered.data_processing.eye_normalization import project_eye_points_live, calculate_eye_closedness_live, choose_eye_points 
 from teyered.head_pose.face_model_processing import load_face_model, optimize_face_model
+from teyered.head_pose.camera_model import CameraModel
+from teyered.head_pose.pose import estimate_pose_live
 
 
 VERTICAL_LINE = "\n-----------------------\n"
@@ -97,10 +97,17 @@ def main():
             previous_points = facial_points
 
         # Pose estimation
-        r_vector, t_vector, angles, camera_world_coord = estimate_pose_live(facial_points, model_points_optimized, prev_rvec, prev_tvec)
+        r_vector, t_vector, angles, camera_world_coord = estimate_pose_live(facial_points, model_points, prev_rvec, prev_tvec)
 
         # Projecting eye points
-        model_points_projected = project_eye_points_live(model_points_optimized, r_vector, t_vector)
+        model_points_projected = project_eye_points_live(model_points, r_vector, t_vector)
+
+        # Calculate eye closedness
+        (left_eye_points, right_eye_points) = choose_eye_points(facial_points)
+        (left_model_eye_points_projected, right_model_eye_points_projected) = choose_eye_points(model_points_projected)
+        eye_closedness_left = calculate_eye_closedness_live(left_eye_points, left_model_eye_points_projected)
+        eye_closedness_right = calculate_eye_closedness_live(right_eye_points, right_model_eye_points_projected)
+        print(f'Eye closedness: {eye_closedness_right}%, {eye_closedness_left}%')
 
         # Image processing
         if (DISPLAY_OPTION == 'a' or DISPLAY_OPTION == 'c'):

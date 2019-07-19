@@ -2,7 +2,6 @@ import pytest
 from hamcrest import *
 import numpy as np
 
-from teyered.head_pose.pose import 
 from teyered.io.files import load_image
 
 
