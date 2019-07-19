@@ -4,7 +4,7 @@ import os
 import cv2
 import numpy as np
 
-from teyered.config import UNIVERSAL_RESIZE
+from teyered.config import UNIVERSAL_RESIZE, ERROR_DATA_FILEPATH, FP_DATA_FILEPATH, EYE_DATA_FILEPATH, POSE_DATA_FILEPATH
 from teyered.io.image_processing import display_image, display_video
 
 
@@ -214,7 +214,7 @@ Methods for saving specific information to csv files
 """
 
 
-def initialize_csv(error_path, pose_path, fp_path):
+def initialize_reports(error_path = ERROR_DATA_FILEPATH, pose_path = POSE_DATA_FILEPATH, fp_path = FP_DATA_FILEPATH, eye_path = EYE_DATA_FILEPATH):
     """
     Initialize csv files and their headers for further data storage
     :param error_path: Relative path to save reprojection error data
@@ -231,7 +231,7 @@ def initialize_csv(error_path, pose_path, fp_path):
     with open(pose_path, 'w') as f:
         initialization_string = 'frame,yaw,pitch,roll\n'
         f.write(initialization_string)
-    logger.info(f'Pose data csv file was successfully initialized at {error_path}')
+    logger.info(f'Pose data csv file was successfully initialized at {pose_path}')
     
     # Facial points (frame, 1x, 1y, 2x, 2y, ..., 68x, 68y)
     with open(fp_path, 'w') as f:
@@ -242,14 +242,20 @@ def initialize_csv(error_path, pose_path, fp_path):
         initialization_string  = initialization_string[:-1] + '\n'
         
         f.write(f'{initialization_string}')
-    logger.info(f'Facial points data csv file was successfully initialized at {error_path}')
+    logger.info(f'Facial points data csv file was successfully initialized at {fp_path}')
 
-def save_error_csv(file_path, frames, data):
+    # Eye closedness (frame, left eye closedness, right eye closedness)
+    with open(eye_path, 'w') as f:
+        initialization_string = 'frame,left,right\n'
+        f.write(initialization_string)
+    logger.info(f'Eye closedness data csv file was successfully initialized at {eye_path}')
+
+def save_error_report(frames, data, file_path = ERROR_DATA_FILEPATH):
     """
     Save reprojection error to the initialized csv file
-    :param file_path: Initialized path file
     :param frames: List of frames numbers which are to be saved 
     :param data: Corresponding reprojection error data
+    :param file_path: Initialized path file
     """
     if frames.shape[0] != data.shape[0]:
         raise ValueError('frames and data array lengths must be the same')
@@ -261,12 +267,12 @@ def save_error_csv(file_path, frames, data):
 
     logger.info(f'Reprojection error data has been successfully written to {file_path}')
 
-def save_pose_csv(file_path, frames, data):
+def save_pose_report(frames, data, file_path = POSE_DATA_FILEPATH):
     """
     Save pose data to the initialized csv file
-    :param file_path: Initialized path file
     :param frames: List of frames numbers which are to be saved 
     :param data: Corresponding pose data
+    :param file_path: Initialized path file
     """
     if frames.shape[0] != data.shape[0]:
         raise ValueError('frames and data array lengths must be the same')
@@ -283,12 +289,12 @@ def save_pose_csv(file_path, frames, data):
 
     logger.info(f'Pose data has been successfully written to {file_path}')
 
-def save_facial_points_csv(file_path, frames, data):
+def save_facial_points_report(frames, data, file_path = FP_DATA_FILEPATH):
     """
     Save facial points data to the initialized csv file
-    :param file_path: Initialized path file
     :param frames: List of frames numbers which are to be saved 
     :param data: Corresponding facial points data
+    :param file_path: Initialized path file
     """
     if frames.shape[0] != data.shape[0]:
         raise ValueError('frames and data array lengths must be the same')
@@ -306,3 +312,23 @@ def save_facial_points_csv(file_path, frames, data):
             f.write(d_string)
     
     logger.info(f'Facial points data has been successfully written to {file_path}')
+
+def save_eye_closedness_report(frames, data_left, data_right, file_path = EYE_DATA_FILEPATH):
+    """
+    Save eye closedness data to the initialized csv file
+    :param frames: List of frames numbers which are to be saved 
+    :param data_left: Corresponding left eye closedness data
+    :param data_right: Corresponding right eye closedness data
+    :param file_path: Initialized path file
+    """
+    if frames.shape[0] != data_left.shape[0]:
+        raise ValueError('frames and data_left array lengths must be the same')
+    if frames.shape[0] != data_right.shape[0]:
+        raise ValueError('frames and data_left array lengths must be the same')
+
+    with open(file_path, 'a') as f:
+        for i in range(0, data_left.shape[0]):
+            d_string = f'{frames[i]},{data_left[i],{data_right[i]}}\n'            
+            f.write(d_string)
+
+    logger.info(f'Eye closedness data has been successfully written to {file_path}')
