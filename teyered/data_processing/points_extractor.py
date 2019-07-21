@@ -73,9 +73,9 @@ class FacialPointsExtractor:
         :param frame_count: In case the method is called in the middle of the frame, tracking may be done instead of new detection
         :return: Array of all facial points in each frame and the current frame count (in case the method is called on portions of video)
         """
-        if frames.shape[0] < 2:
-            raise ValueError('At least two frames are required in the sequence')
-        if (previous_frame is None and previous_points is not None) or (previous_frame is None and previous_points is not None):
+        if frames.shape[0] < 1:
+            raise ValueError('At least one frame is required')
+        if (previous_frame is None and previous_points is not None) or (previous_frame is not None and previous_points is None):
             raise ValueError('Previous frame and previous points must be provided together')
         if previous_frame is None and not frame_count == 0:
             raise ValueError('If previous frame and previous points are not provided, frame count must be 0')
@@ -88,7 +88,7 @@ class FacialPointsExtractor:
 
             # No facial points detected, skip this frame and detect in the next iteration
             if detected_facial_points is None:
-                facial_points_all.append([])
+                facial_points_all.append(None)
                 frame_count = 0
                 continue
 
@@ -114,38 +114,3 @@ class FacialPointsExtractor:
 
         logger.debug('Facial points were successfully extracted from the image')
         return (np.array(facial_points_all), frame_count)
-
-    def extract_facial_points_live(self, frame, previous_frame = None, previous_points = None, frame_count = 0):
-        """
-        Live version of extract_facial_points method
-        :param frame: Current frame to be analysed
-        :param previous_frame: Previous frame if provided
-        :param previous_points: Previous points if provided
-        :param frame_count: Frame count if provided
-        :return: np.ndarray of facial points scaled to the frame or None if not detected
-        """
-        if (previous_frame is not None and previous_points is None) or (previous_frame is None and previous_points is not None):
-            raise ValueError('Previous frame and previous points must be provided together')
-        if previous_frame is None and not frame_count == 0:
-            raise ValueError('If previous frame and previous points are not provided, frame count must be 0')
-
-        # Detect facial points as this will be needed in any case
-        detected_facial_points = self.detect_facial_points(frame)
-
-        # No facial points detected, skip this frame and detect in the next iteration
-        if detected_facial_points is None:
-            return (None, 0)
-
-        # (Re)detect at every TRACKING_LENGTHth frame
-        if frame_count % TRACKING_LENGTH == 0 or previous_frame is None:
-            return (detected_facial_points, 1)
-        # Track
-        else:
-            tracked_points = self.track_facial_points_LK(
-                previous_frame, frame, previous_points,
-                detected_facial_points)
-            
-            if tracked_points is None:
-                return (detected_facial_points, 1)
-            else:
-                return (tracked_points, frame_count+1)

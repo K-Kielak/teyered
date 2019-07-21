@@ -103,6 +103,8 @@ def estimate_pose(facial_points_all, model_points, prev_rvec = None, prev_tvec =
     :param prev_tvec: Previous translation vector if this is not the beginning of the video
     :return: Rotation and translation vectors, euler angles and camera position in world coordinates for every frame as np.ndarray
     """
+    if facial_points_all.size < 1:
+        raise ValueError('Facial points must be provided for at least one frame')
     if (prev_rvec is not None and prev_tvec is None) or (prev_rvec is None and prev_tvec is not None):
         raise ValueError('Previous rotation and translation vectors must be provided together')
 
@@ -112,12 +114,12 @@ def estimate_pose(facial_points_all, model_points, prev_rvec = None, prev_tvec =
     angles_all = []
     camera_world_coord_all = []
 
-    # Choose model points
+    # Choose model points used to estimate the pose
     model_points_pose = choose_pose_points(model_points)
 
     for facial_points in facial_points_all:
-        # No facial points were detected for that frame, skip and reset
-        if not facial_points:
+
+        if facial_points is None:
             r_vectors_all.append(None)
             t_vectors_all.append(None)
             angles_all.append(None)

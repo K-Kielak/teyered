@@ -10,11 +10,11 @@ from teyered.head_pose.pose import choose_pose_points
 logger = logging.getLogger(__name__)
 
 
-def project_eye_points(frames, extracted_points_all, projection_points, r_vectors_all, t_vectors_all, camera_matrix = CAMERA_MATRIX, dist_coeffs = DIST_COEFFS):
+def project_eye_points(extracted_points_all, projection_points, r_vectors_all, t_vectors_all, camera_matrix = CAMERA_MATRIX, dist_coeffs = DIST_COEFFS):
     """
     Project eye points from world/model coordinates onto image coordinate system for all frames.
     :param frames: All frames to be analysed
-    :param extracted_points_all: Scaled extracted eye points for all frames
+    :param extracted_points_all: Scaled extracted eye points for all frames used to know whether or not to project on the frame
     :param projection_points: Eye points to be projected from world/model coordinate system to image coordinate system
     :param r_vectors_all: Rotation vectors for all frames
     :param t_vectors_all: Translation vectors for all frames
@@ -22,18 +22,16 @@ def project_eye_points(frames, extracted_points_all, projection_points, r_vector
     :param dist_coeffs: Default value from config.py
     :return: np.ndarray of projected model points at each frame
     """
-    if frames.shape[0] != extracted_points_all.shape[0]:
-        raise ValueError('extracted_points_all and frames array length must be the same')
-    if frames.shape[0] != r_vectors_all.shape[0]:
-        raise ValueError('r_vectors_all and frames array length must be the same')
-    if frames.shape[0] != t_vectors_all.shape[0]:
-        raise ValueError('t_vectors_all and frames array length must be the same')
-    if not frames.size:
-        raise ValueError('frames array size cannot be 0')
+    if extracted_points_all.shape[0] != r_vectors_all.shape[0]:
+        raise ValueError('r_vectors_all and extracted points array length must be the same')
+    if extracted_points_all.shape[0] != t_vectors_all.shape[0]:
+        raise ValueError('t_vectors_all and extracted points array length must be the same')
+    if extracted_points_all.size < 1:
+        raise ValueError('Must provide at least one frame for projection')
 
     projected_points_all = []
     
-    for i, frame in enumerate(frames):
+    for i in range(0, extracted_points_all.shape[0]):
         if extracted_points_all[i] is None:
             projected_points_all.append(None)
         else:
@@ -44,21 +42,7 @@ def project_eye_points(frames, extracted_points_all, projection_points, r_vector
         
     return np.array(projected_points_all)
 
-def project_eye_points_live(projection_points, r_vector, t_vector, camera_matrix = CAMERA_MATRIX, dist_coeffs = DIST_COEFFS):
-    """
-    Live version of project_eye_points().
-    :param projection_points: Eye points to be projected from world/model coordinate system to image coordinate system
-    :param r_vector: Rotation vector
-    :param t_vector: Translation vector
-    :param camera_matrix: Default value from config.py
-    :param dist_coeffs: Default value from config.py
-    :return: np.ndarray of projected points in image plane coordinates
-    """
-    projected_points, _ = cv2.projectPoints(projection_points, 
-        r_vector, t_vector, camera_matrix, dist_coeffs)
-
-    return projected_points
-
+# Todo not sure why return type is tuple
 def calculate_reprojection_error(frames, extracted_points_all, projected_points_all):
     """
     Calculate reprojection error based on euclidian distance between extracted points and projected points. Extracted and projected points must be the same points
@@ -71,8 +55,8 @@ def calculate_reprojection_error(frames, extracted_points_all, projected_points_
         raise ValueError('extracted_points_all and frames array length must be the same')
     if frames.shape[0] != projected_points_all.shape[0]:
         raise ValueError('projected_points_all and frames array length must be the same')
-    if not frames.size:
-        raise ValueError('frames array size cannot be 0')
+    if frames.size < 1:
+        raise ValueError('Must provide at least one frame')
 
     errors = []
 
@@ -86,19 +70,6 @@ def calculate_reprojection_error(frames, extracted_points_all, projected_points_
 
     return np.array(errors)
 
-def calculate_reprojection_error_live(extracted_points, projected_points):
-    """
-    Live version of calculate_reprojection_error(). Extracted and projected points must be the same points
-    :param extracted_points: Extracted points
-    :param projected_points: Projected points
-    :return: Float value of the overall reprojection error
-    """
-    if extracted_points.shape != reprojected_points.shape:
-        raise ValueError('extracted_points and reprojected_points arrays must have the same shape')
-
-    # Sum of euclidian distances (todo, needs to be rewritten, there's np built-in function)
-    return np.sum(np.power(np.sum(np.power(extracted_points-reprojected_points,2), axis=1), 0.5))
-
 def calculate_eye_closedness(extracted_points_all, projected_points_all):
     """
     Compare the projected eye points with extracted eye points and calculate closedness for all frames
@@ -108,7 +79,7 @@ def calculate_eye_closedness(extracted_points_all, projected_points_all):
     """
     if extracted_points_all.shape[0] != projected_points_all.shape[0]:
         raise ValueError('extracted_points_all and projected_points_all arrays must have the same length')
-    if not extracted_points_all.size:
+    if extracted_points_all.size < 1:
         raise ValueError('extracted_points_all and projected_points_all arrays must not be empty')
 
     eye_closedness = []
@@ -124,22 +95,12 @@ def calculate_eye_closedness(extracted_points_all, projected_points_all):
 
     return np.array(eye_closedness)
 
-def calculate_eye_closedness_live(extracted_points, projected_points):
-    """
-    Live version of calculate_eye_closedness()
-    :param extracted_points: Extracted eye points
-    :param projected_points: Projected eye points
-    :return: Closedness percentage (1 == 100%)
-    """
-    projected_points_sq = np.squeeze(projected_points)
-
-    extracted_area = _calculate_polygon_area(extracted_points)
-    projected_area = _calculate_polygon_area(projected_points_sq)
-
-    # (x < 1) == more closed, (x > 1) == more open than usual
-    return extracted_area / projected_area
-
 def choose_eye_points(facial_points):
+    """
+    Choose eye points from extracted facial points
+    :param facial_points: Facial points extracted with points_extractor()
+    :return: Eye points for left and right eyes
+    """
     left_eye_points = np.array(facial_points[slice(*LEFT_EYE_COORDINATES)])
     right_eye_points = np.array(facial_points[slice(*RIGHT_EYE_COORDINATES)])
     return (left_eye_points, right_eye_points)

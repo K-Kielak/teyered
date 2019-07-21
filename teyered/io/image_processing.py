@@ -44,7 +44,7 @@ def draw_pose(frames, facial_points_all, r_vectors_all, t_vectors_all,
 
     edited_frames = []
 
-    for i, frames in enumerate(frames):
+    for i, frame in enumerate(frames):
         edited_frame = frame
 
         # No facial points identified for the frame
@@ -87,7 +87,7 @@ def draw_pose(frames, facial_points_all, r_vectors_all, t_vectors_all,
 def draw_facial_points(frames, facial_points_all, color=GREEN_COLOR):
     """
     :param frames: Video frames scaled to facial points
-    :param facial_points: Facial points to be drawn for each frame
+    :param facial_points_all: Facial points to be drawn for each frame
     :param color: Color of the facial points
     :return: All frames with facial points drawn on them
     """
@@ -337,6 +337,26 @@ def write_angles_frame(frame, angles, color=WHITE_COLOR):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
 
     logger.debug('Angles written successfully')
+    return edited_frame
+
+def write_closedness_frame(frame, closedness_left, closedness_right, color=WHITE_COLOR):
+    """
+    :param frame:
+    :param angles:
+    :param color: Color of the text
+    :return: Frame with angles text writtten on top
+    """
+    edited_frame = frame
+
+    closedness_left_text = f'closedness left: {int(closedness_left*100)}%'
+    closedness_right_text = f'closedness right: {int(closedness_right*100)}%'
+
+    cv2.putText(edited_frame, closedness_left_text, (10, 175),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+    cv2.putText(edited_frame, closedness_right_text, (10, 200),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+    logger.debug('Closedness data written successfully')
     return edited_frame
 
 
