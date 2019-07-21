@@ -27,6 +27,9 @@ PRERECORDED_VIDEO_FILEPATH = os.path.join(PRERECORDED_VIDEO_DIR, PRERECORDED_VID
 ERROR_DATA_FILENAME = 'error_data.csv'
 ERROR_DATA_FILEPATH = os.path.join(REPORTS_DIR, ERROR_DATA_FILENAME)
 
+FP_DATA_FILENAME = 'fp_data.csv'
+FP_DATA_FILEPATH = os.path.join(REPORTS_DIR, FP_DATA_FILENAME)
+
 EYE_DATA_FILENAME = 'eye_data.csv'
 EYE_DATA_FILEPATH = os.path.join(REPORTS_DIR, EYE_DATA_FILENAME)
 
@@ -35,7 +38,7 @@ POSE_DATA_FILEPATH = os.path.join(REPORTS_DIR, POSE_DATA_FILENAME)
 
 # Image processing configuration
 IMAGE_UPSAMPLE_FACTOR = 1  # Ease facial landmark detection (value from dlib)
-UNIVERSAL_RESIZE = 1080 # [px] Photo processing size
+UNIVERSAL_RESIZE = 500 # [px] Photo processing size
 ASPECT_RATIO = 720/1080
 
 # Lower and upper boundaries of the facial feature labels
@@ -56,6 +59,7 @@ FRAME_TO_ANALYSE = 1
 # How many seconds of footage to analyse in a single iteration
 BATCH_SIZE = 10 # seconds
 
+"""
 # Leo and Karl's camera parameters (calibrated)
 CAMERA_MATRIX = np.array(
                              [[962.51477715, 0, 509.06946124],
@@ -63,16 +67,17 @@ CAMERA_MATRIX = np.array(
                              [0, 0, 1]], dtype = "double"
                          )
 DIST_COEFFS = np.array([[-0.0992409, 1.0407034, -0.00665748, -0.01156595, -2.11200394]], dtype="double")
+"""
 
 # Approximation for any camera parameters
 FOCAL_LENGTH = UNIVERSAL_RESIZE
 CENTER = (UNIVERSAL_RESIZE / 2, UNIVERSAL_RESIZE*ASPECT_RATIO / 2)  # Need to know aspect ratio
-CAMERA_MATRIX_APPROX = np.array(
+CAMERA_MATRIX = np.array(
                              [[FOCAL_LENGTH, 0, CENTER[0]],
                              [0, FOCAL_LENGTH, CENTER[1]],
                              [0, 0, 1]], dtype = "double"
                          )
-DIST_COEFFS_APPROX = np.zeros((4, 1))
+DIST_COEFFS = np.zeros((4, 1))
 
 # Colours (hex inversed, #0000ff is blue, but here red so read from right to left)
 RED_COLOR = (0, 0, 255)
