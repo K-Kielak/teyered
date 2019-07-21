@@ -150,27 +150,3 @@ def estimate_pose(facial_points_all, model_points, prev_rvec = None, prev_tvec =
 
     logger.debug('Shape estimation has finished successfully')
     return (np.array(r_vectors_all), np.array(t_vectors_all), np.array(angles_all), np.array(camera_world_coord_all))
-
-def estimate_pose_live(facial_points, model_points, prev_rvec = None, prev_tvec = None):
-    """
-    Live version of estimate_pose()
-    :param facial_points: Facial points for the frame
-    :param model_points: Model points for the frame
-    :param prev_rvec: Previous rotation vector
-    :param prev_tvec: Previous translation vector
-    :return: Rotation and translation vectors, angles and camera in world coordinates as np.ndarray
-    """
-    if (prev_rvec is not None and prev_tvec is None) or (prev_rvec is None and prev_tvec is not None):
-        raise ValueError('Previous rotation and translation vectors must be provided together')
-
-    facial_points_pose = choose_pose_points(facial_points)
-    model_points_pose = choose_pose_points(model_points)
-
-    r_vector, t_vector = solve_pnp(facial_points_pose, model_points_pose,
-                                    prev_rvec, prev_tvec)
-
-    rotation_matrix, _ = get_rotation_matrix(r_vector)
-    yaw, pitch, roll = get_euler_angles(rotation_matrix, t_vector)
-    camera_world_coord = get_camera_world_coord(rotation_matrix, t_vector)
-
-    return (r_vector, t_vector, np.array([yaw, pitch, roll]), camera_world_coord)
