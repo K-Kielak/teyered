@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 from teyered.config import CAMERA_MATRIX, DIST_COEFFS, UNIVERSAL_RESIZE
-from teyered.io.image_processing import draw_pose_frame, draw_facial_points_frame, gray_image, resize_image, write_angles_frame, draw_projected_points_frame, display_image, write_closedness_frame
+from teyered.io.image_processing import draw_pose, draw_facial_points, gray_video, resize_video, write_angles, draw_projected_points, display_image, write_closedness
 from teyered.io.files import load_image
 from teyered.data_processing.points_extractor import FacialPointsExtractor
 from teyered.data_processing.eye_normalization import project_eye_points, calculate_eye_closedness, choose_eye_points 
@@ -43,8 +43,8 @@ def main():
         _, frame = cap.read()
         
         # Read frame and detect facial points
-        frame_resized = resize_image(frame)
-        gray_frame = gray_image(frame_resized)
+        frame_resized = resize_video(np.array([frame]))[0]
+        gray_frame = gray_video(np.array([frame_resized]))[0]
         facial_points, frame_count = points_extractor.extract_facial_points(np.array([gray_frame]), previous_frame = previous_frame, previous_points = previous_points, frame_count = frame_count)
         facial_points = facial_points[0]
 
@@ -76,11 +76,11 @@ def main():
         eye_closedness_right = calculate_eye_closedness(np.array([right_eye_points]), np.array([right_model_eye_points_projected]))[0]
 
         # Image processing
-        draw_facial_points_frame(frame_resized, facial_points)
-        draw_projected_points_frame(frame_resized, model_points_projected)
-        draw_pose_frame(frame_resized, facial_points, r_vector, t_vector, CAMERA_MATRIX, DIST_COEFFS)
-        write_angles_frame(frame_resized, angles)
-        write_closedness_frame(frame_resized, eye_closedness_left, eye_closedness_right)
+        frame_resized = draw_facial_points(np.array([frame_resized]), np.array([facial_points]))[0]
+        frame_resized = draw_projected_points(np.array([frame_resized]), np.array([model_points_projected]))[0]
+        frame_resized = draw_pose(np.array([frame_resized]), np.array([facial_points]), np.array([r_vector]), np.array([t_vector]), CAMERA_MATRIX, DIST_COEFFS)[0]
+        frame_resized = write_angles(np.array([frame_resized]), np.array([angles]))[0]
+        frame_resized = write_closedness(np.array([frame_resized]), np.array([eye_closedness_left]), np.array([eye_closedness_right]))[0]
         LOOP = display_image(frame_resized)
 
         # Set previous data

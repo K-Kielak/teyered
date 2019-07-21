@@ -6,7 +6,6 @@ import numpy as np
 from teyered.config import FACE_MODEL_FILEPATH, JAW_COORDINATES, \
      NOSE_COORDINATES, FACE_GROUND_TRUTH_FILEPATH
 
-from teyered.io.image_processing import draw_facial_points_frame
 from teyered.io.files import load_image
 from teyered.data_processing.points_extractor import FacialPointsExtractor
 
