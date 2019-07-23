@@ -1,11 +1,7 @@
 .DS_Store
 teyeredvenv/*
-teyered_venv/*
-test.py
-test2.py
 __pycache__
 .pytest_cache
-logic.py
 *.mov
 *.avi
 *.mp4
@@ -13,3 +9,6 @@ logic.py
 *.xlsx
 *.csv
 *.jpg
+demo
+experimental
+.idea

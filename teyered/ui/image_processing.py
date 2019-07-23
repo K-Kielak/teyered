@@ -1,14 +1,17 @@
 import logging
 
 import cv2
-from imutils import resize
 import numpy as np
+from imutils import resize
 
 from teyered.config import UNIVERSAL_RESIZE, RED_COLOR, GREEN_COLOR, \
-    BLUE_COLOR, WHITE_COLOR, CAMERA_MATRIX, DIST_COEFFS
+    BLUE_COLOR, WHITE_COLOR, CAMERA_MATRIX, DIST_COEFFS, ASPECT_RATIO
 
 
 logger = logging.getLogger(__name__)
+
+# Approximate height of the resized frame with offset for text display
+HEIGHT = int(UNIVERSAL_RESIZE * ASPECT_RATIO) - 60  # px
 
 
 def draw_pose(frames, facial_points_all, r_vectors_all, t_vectors_all,
@@ -22,17 +25,17 @@ def draw_pose(frames, facial_points_all, r_vectors_all, t_vectors_all,
     :param t_vectors_all: Translation vectors in each frame
     :param camera_matrix: Calibrated camera matrix
     :param dist_coeffs: Calibrated distortion coefficients
-    :return: All frames with pose drawn on them
+    :return: np.ndarray of frames with pose drawn on them
     """
     if frames.shape[0] != facial_points_all.shape[0]:
-        raise ValueError(
-            'facial_points_all and frames array length must be the same')
+        raise ValueError('facial_points_all and frames array length must be '
+                         'the same')
     if frames.shape[0] != r_vectors_all.shape[0]:
-        raise ValueError(
-            'r_vectors_all and frames array length must be the same')
+        raise ValueError('r_vectors_all and frames array length must be '
+                         'the same')
     if frames.shape[0] != t_vectors_all.shape[0]:
-        raise ValueError(
-            't_vectors_all and frames array length must be the same')
+        raise ValueError('t_vectors_all and frames array length must be '
+                         'the same')
     if frames.size < 1:
         raise ValueError('Must provide at least one frame')
 
@@ -46,9 +49,7 @@ def draw_pose(frames, facial_points_all, r_vectors_all, t_vectors_all,
             edited_frames.append(edited_frame)
             continue
 
-        # Project 3D points onto 2D image plane based on the coordinate system
-        # described in README, but inverse y-axis and z-axis, so that
-        # it is more human friendly
+        # Project 3D world points onto 2D image plane
 
         rot_x, _ = cv2.projectPoints(np.array([(1.0, 0.0, 0.0)]),
                                      r_vectors_all[i], t_vectors_all[i],
@@ -80,10 +81,11 @@ def draw_pose(frames, facial_points_all, r_vectors_all, t_vectors_all,
 
 def draw_facial_points(frames, facial_points_all, color=GREEN_COLOR):
     """
+    Draw any facial points on top of the image
     :param frames: Video frames scaled to facial points
     :param facial_points_all: Facial points to be drawn for each frame
     :param color: Color of the facial points
-    :return: All frames with facial points drawn on them
+    :return: np.ndarray of frames with facial points drawn on them
     """
     if frames.shape[0] != facial_points_all.shape[0]:
         raise ValueError(
@@ -99,7 +101,7 @@ def draw_facial_points(frames, facial_points_all, color=GREEN_COLOR):
         if facial_points_all[i] is not None:
             for point in facial_points_all[i]:
                 cv2.circle(edited_frame, (int(point[0]), int(point[1])),
-                        1, color, -1)
+                           1, color, -1)
 
         edited_frames.append(edited_frame)
 
@@ -109,14 +111,15 @@ def draw_facial_points(frames, facial_points_all, color=GREEN_COLOR):
 
 def draw_projected_points(frames, projected_points_all, color=RED_COLOR):
     """
+    Draw any projected points on top of the image
     :param frames: Video frames scaled to facial points
     :param projected_points_all: Projected points to be drawn for each frame
     :param color: Color of the projected points
-    :return: All frames with projected points drawn on them
+    :return: np.ndarray of frames with projected points drawn on them
     """
     if frames.shape[0] != projected_points_all.shape[0]:
-        raise ValueError(
-            'projected_points and frames array length must be the same')
+        raise ValueError('projected_points and frames array length must be '
+                         'the same')
     if frames.size < 1:
         raise ValueError('Must provide at least one frame')
 
@@ -127,7 +130,8 @@ def draw_projected_points(frames, projected_points_all, color=RED_COLOR):
 
         if projected_points_all[i] is not None:
             for point in projected_points_all[i]:
-                cv2.circle(edited_frame, (int(point[0][0]), int(point[0][1])), 1, color, -1)
+                cv2.circle(edited_frame, (int(point[0][0]), int(point[0][1])),
+                           1, color, -1)
 
         edited_frames.append(edited_frame)
 
@@ -141,7 +145,7 @@ def write_angles(frames, angles_all, color=WHITE_COLOR):
     :param frames: Video frames scaled to facial points
     :param angles_all: Angles to be drawn for each frame
     :param color: Color of the angles
-    :return: All frames with angles written on them
+    :return: np.ndarray of frames with angles written on them
     """
     if frames.shape[0] != angles_all.shape[0]:
         raise ValueError('angles_all and frames array length must be the same')
@@ -163,11 +167,11 @@ def write_angles(frames, angles_all, color=WHITE_COLOR):
         angle_text_pitch = f'pitch: {angles_all[i][1][0]}'
         angle_text_roll = f'roll: {angles_all[i][2][0]}'
 
-        cv2.putText(edited_frame, angle_text_yaw, (10, 250),
+        cv2.putText(edited_frame, angle_text_yaw, (10, HEIGHT - 50),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-        cv2.putText(edited_frame, angle_text_pitch, (10, 275),
+        cv2.putText(edited_frame, angle_text_pitch, (10, HEIGHT - 25),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-        cv2.putText(edited_frame, angle_text_roll, (10, 300),
+        cv2.putText(edited_frame, angle_text_roll, (10, HEIGHT),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
 
         edited_frames.append(edited_frame)
@@ -176,37 +180,42 @@ def write_angles(frames, angles_all, color=WHITE_COLOR):
     return np.array(edited_frames)
 
 
-def write_closedness(frames, closedness_left_all, closedness_right_all, color=WHITE_COLOR):
+def write_closedness(frames, closedness_left_all, closedness_right_all,
+                     color=WHITE_COLOR):
     """
     Write closedness for both eyes on top of the video
     :param frames: Video frames scaled to facial points
     :param closedness_left_all: Closedness of left eye for all frames
     :param closedness_right_all: Closedness of right eye for all frames 
     :param color: Color of the text
-    :return: All frames with angles text writtten on them
+    :return: All frames with angles text written on them
     """
     if frames.shape[0] != closedness_left_all.shape[0]:
-        raise ValueError('closedness_left_all and frames array length must be the same')
+        raise ValueError('closedness_left_all and frames array length must be'
+                         ' the same')
     if frames.shape[0] != closedness_right_all.shape[0]:
-        raise ValueError('closedness_right_all and frames array length must be the same')
+        raise ValueError('closedness_right_all and frames array length must be'
+                         ' the same')
     if frames.size < 1:
         raise ValueError('Must provide at least one frame')
-    
+
     edited_frames = []
 
     for i, frame in enumerate(frames):
         edited_frame = frame
 
-        if closedness_left_all[i] is None and closedness_right_all[i] is None:
+        if closedness_left_all[i] is None or closedness_right_all[i] is None:
             edited_frames.append(edited_frame)
             continue
 
-        closedness_left_text = f'closedness left: {int(closedness_left_all[i]*100)}%'
-        closedness_right_text = f'closedness right: {int(closedness_right_all[i]*100)}%'
+        closedness_left_text = f'closedness left: ' \
+            f'{int(closedness_left_all[i] * 100)}%'
+        closedness_right_text = f'closedness right: ' \
+            f'{int(closedness_right_all[i] * 100)}%'
 
-        cv2.putText(edited_frame, closedness_left_text, (10, 175),
+        cv2.putText(edited_frame, closedness_left_text, (10, HEIGHT - 100),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-        cv2.putText(edited_frame, closedness_right_text, (10, 200),
+        cv2.putText(edited_frame, closedness_right_text, (10, HEIGHT - 75),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
 
         edited_frames.append(edited_frame)
@@ -217,7 +226,8 @@ def write_closedness(frames, closedness_left_all, closedness_right_all, color=WH
 
 def gray_video(frames):
     """
-    :param frames:
+    Convert all frames into grayscale
+    :param frames: All frames
     :return: Video in grayscale
     """
     if frames.size < 1:
@@ -234,7 +244,9 @@ def gray_video(frames):
 
 def resize_video(frames, width: int = UNIVERSAL_RESIZE):
     """
-    :param frames:
+    Resize all frames to the selected width
+    :param frames: All frames
+    :param width: Selected width
     :return: Resized video
     """
     if frames.size < 1:
@@ -248,9 +260,11 @@ def resize_video(frames, width: int = UNIVERSAL_RESIZE):
     logger.debug('Video resized successfully')
     return np.array(edited_frames)
 
+
 def display_video(frames):
     """
-    :param frames:
+    Display video on screen
+    :param frames: All frames
     """
     if frames.size < 2:
         raise ValueError('Must provde at least one frame')
@@ -263,10 +277,12 @@ def display_video(frames):
 
     cv2.destroyAllWindows()
 
+
 def display_image(frame):
     """
-    :param frame:
+    Display a single image on screen
+    :param frame: Single frame
     """
-    cv2.imshow('Display video', frame)
+    cv2.imshow('Display frame', frame)
 
     return not (cv2.waitKey(60) & 0xFF == ord('q'))
