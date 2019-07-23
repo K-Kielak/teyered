@@ -55,6 +55,7 @@ class PoseEstimator:
     def _get_euler_angles(self, rotation_matrix, translation_vector):
         """
         Get euler angles from rotation matrix and translation vector (XYZ)
+        TODO Check the order of Euler angles
         :param rotation_matrix: Rotation matrix from get_rotation_matrix()
         :param translation_vector: Translation vector from solve_pnp()
         :return: Yaw, pitch and roll angles in this specific order

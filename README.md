@@ -1,35 +1,74 @@
 # Teyered
 
-Machine Learning framework for tiredness detection.
+Machine Learning and Computer Vision framework for tiredness detection.
 
-The following sections accompany the code and explain in depth the concepts required to understand it.
+## Table of Contents
+
+- [Example](#Example)
+- [Facial features extraction](#Facial-features-extraction)
+- [Coordinate systems and Camera](#Coordinate-systems-and-Camera)
+- [Face model](#Face-model)
+- [Head pose estimation](#Head-pose-estimation)
+- [Normalization of eye points](#Normalization-of-eye-points)
+- [3D visualization software](#3D-visualization-software)
+- [Team](#Team)
+
+## Example
+
+Assuming that the video is loaded and analysed in batches (where batch is a list of consecutive frames):
+
+```python
+# Set up objects and 3D face model
+camera_model = CameraModel()
+points_extractor = FacialPointsExtractor()
+model_points = load_face_model()
+pose_esimator = PoseEstimator(model_points)
+
+# Load batches in your preferred way
+for batch in batches:
+
+    # Prepare frames for processing
+    frames = gray_video(resize_video(batch))
+
+    # Extract facial points
+    facial_points_all = points_extractor.extract_facial_points(frames)
+
+    # Estimate pose
+    r_vectors_all, t_vectors_all, angles_all, camera_wc_all = pose_estimator.estimate_pose(facial_points_all)
+
+    # Calculate eye closedness percentage and reprojection error
+    c_left_all, c_right_all, err_left_all, err_right_all = calculate_eye_closedness(
+        facial_points_all, model_points, r_vectors_all, t_vectors_all
+    )
+
+    # Do further analysis/save info from the batch
+```
 
 ## Facial features extraction
 
-We combine CNN facial points detection and Lukas-Kanade optical flow tracker to extract the most accurate representation of facial features at any point in time.
+We combine CNN facial points detection and Lukas-Kanade optical flow tracker to extract the most accurate representation of facial features at any point in time. Noise of the facial landmarks data is partially due to the fact that the facial features are only detected and never tracked. 
 
-**Why combine detection and tracking?** The noise of the facial landmarks data is partially due to the fact that the facial features are detected and not tracked. Detected - we detect facial features in each frame separately. Thus, the points marking the facial features are not necessarily "the same points" throughout the pictures. Tracking - something like Lukas-Kanade optical flow tracker would give (nearly) the same matching points, thus way less noise. Another point is that it is computationally less costly to track than to detect.
+Detected means that we detect facial features in each frame indepentently of previous frames. Thus, facial features points are not necessarily "the same points" throughout consecutive pictures. 
 
-### points_extractor.py
+Tracking means using something like Lukas-Kanade optical flow tracker. This would give (nearly) the same matching points for consecutive frames, thus way less noise, which is later an important factor for estimating pose. Another reason for using tracking is that it should be less computationally costly than detection.
 
-* `_detect_facial_points(self, frame)`
-    * **Description:** Detect facial points in the frame and return all the detected points in the numpy array (or None otherwise)
-    * **TODO:** At the moment this is done using dlib, but we will change this to what we want
+### LK tracking
 
-* `_track_facial_points_LK(self, previous_frame, new_frame, previous_points, detected_points)`
-    * **Description:** Track the points using Lucas-Kanade optical flow. The idea is as follows: take two consecutive frames and the detected points in the first frame. Then identify the same points in the second frame and find the displacement (change) between the two frames. This uses `cv2.calcOpticalFlowPyrLK()` which calculates an optical flow for a sparse feature set using the iterative Lucas-Kanade method with pyramids. Currently if any of the points gets lost, redetect all of them. Example:
+The idea is as follows: take two consecutive frames and the detected points in the first frame. Then identify the same points in the second frame and find the displacement (change) between the two frames. Example:
 
-    <p align="center">
-        <img src="https://www.researchgate.net/publication/328750324/figure/fig3/AS:689787098910728@1541469468946/Optical-flow-map-computed-by-different-methods-a-Lucas-Kanade-b-Horn-Schunck-c.png">
-    </p>
+<p align="center">
+    <img src="https://www.researchgate.net/publication/328750324/figure/fig3/AS:689787098910728@1541469468946/Optical-flow-map-computed-by-different-methods-a-Lucas-Kanade-b-Horn-Schunck-c.png">
+</p>
 
-    * **TODO:** Redetect only those which are needed based on errors of individual points, for example by pure pixel distance from detected points. Try another optical flow tracking method. Try other tracking methods in general.
+Our implementation uses `cv2.calcOpticalFlowPyrLK()` which calculates an optical flow for a sparse feature set using the iterative Lucas-Kanade method with pyramids. Currently if any of the points gets lost in the tracking process, redetect all of them.
 
-* `extract_facial_points(self, frames)`
-    * **Description:** Simply combine detection and tracking
-    * **TODO:** Introduce filtering (Kalman for real time, but maybe there are other methods that would also perform better or equally good using on prerecorded videos, but with less computational cost)
+### TODO
 
-## Camera, coordinates and calibration
+- Apply filtering (for example Kalman)
+- Try out different redetection possibilities (based on relative error)
+- Try out different tracking algorithms
+
+## Coordinate systems and Camera
 
 Different coordinate systems (different frames of reference):
 
@@ -55,13 +94,15 @@ We assume pinhole camera model and use perspective transformation - converting p
 
 Rotation/translation of the object from world coordinates to camera coordinates form a matrix of **extrinsic parameters**. Describes camera motion around a static scene or a rigid motion of an object in front of a still camera.
 
-Camera has its own **intrinsic parameters** - focal length, optical center and distortion coefficient. These can be either provided by the camera manufacturer (known) or we can obtain them by calibrating the camera (`camera_model.py`). These never change as opposed to extrinsic parameters (unless we zoom in, then the focal length can change)
+Camera has its own **intrinsic parameters** - focal length, optical center and distortion coefficient. These can be either provided by the camera manufacturer (known) or we can obtain them by calibrating the camera. These never change as opposed to extrinsic parameters (unless we zoom in, then the focal length can change)
 
-**TODO:** Currently, we're using approximation of the intrinsic parameters from https://www.learnopencv.com/approximate-focal-length-for-webcams-and-cell-phone-cameras/. Custom calibration using the provided class and proper calibration images should give better results than current approximation. I personally use MacBook Pro built-in camera, its parameters are not disclosed by Apple afaik. More accurate camera parameters - more accurate head pose estimation.
+### TODO 
 
-## Face model and coordinates
+- Currently, we're using approximation of the intrinsic parameters from https://www.learnopencv.com/approximate-focal-length-for-webcams-and-cell-phone-cameras/. Custom calibration using the provided class and proper calibration images should give better results than current approximation. I personally use MacBook Pro built-in camera, its parameters are not disclosed by Apple afaik. More accurate camera parameters - more accurate head pose estimation.
 
-Dlib uses the following convention for face points:
+## Face model
+
+We, just like `dlib`, use the following 2D and 3D face models:
 
 <p align="center">
     <img src="https://www.pyimagesearch.com/wp-content/uploads/2017/04/facial_landmarks_68markup.jpg" width=500>
@@ -77,7 +118,7 @@ Dlib uses the following convention for face points:
 
 From a person's perspective, your right eye is left eye in this diagram.
 
-Image plane coordinates are as follows (px, 500 stands for `UNIVERSAL_RESIZE` variable in `config.py`):
+Image plane coordinates are as follows (pixels):
 
 <p align="center">
     <img src="readme_images/image_plane_coord.png" width=200>
@@ -87,7 +128,7 @@ Image plane coordinates are as follows (px, 500 stands for `UNIVERSAL_RESIZE` va
 We use 3D face model from <a href="https://github.com/TadasBaltrusaitis/OpenFace">here</a> (we will need to develop our own version as the license is incorrect for us).
 
 <p align="center">
-    <img src="readme_images/face_3D.gif" width=400>
+    <img src="readme_images/face_3D.gif" width=300>
 </p>
 
 The following are the `face_model.txt` coordinates:
@@ -96,9 +137,9 @@ The following are the `face_model.txt` coordinates:
     <img src="readme_images/face_3D_coord.png">
 </p>
 
-Thus, to plot the head pose orientation in a "human friendly way", we plot lines from (0,0,0) to (1,0,0), (0,-1,0) and (0,0,-1) in both 2D and 3D. No transformation would mean having 0&deg; pitch, roll and yaw.
+Thus, to plot the head pose orientation in a "human friendly way", we plot lines from `(0,0,0)` to `(1,0,0)`, `(0,-1,0)` and `(0,0,-1)` in both 2D and 3D. No transformation would mean having 0&deg; pitch, roll and yaw.
 
-The following are the `face_model.txt` and 2D facial points on image plane coordinates to illustrate the relation:
+The following are the `face_model.txt` (yellow) and 2D facial points (red) on image plane coordinates to illustrate the relation:
 
 <p align="center">
     <img src="readme_images/face_3D_2D.png">
@@ -110,26 +151,20 @@ The following are the `face_model.txt` and 2D facial points on image plane coord
 
 We could rotate both facial points and model points 180&deg; around x-axis (red) to get a more "human readable and intuitive" representation of both angles and axis, but this is not necessary. Model is adjusted according to the way image plane works (and thus facial points are obtained).
 
-### face_model_processing.py
+### Processing face model
 
-* `optimize_face_model(facial_points, model_points)`
-    * **Description:** Optimize the model points so that the shape resembles the one of the person (for example: eye width, eye-nose-eye distance etc.). Currently, it only normalizes the coordinates of the points (shift and scale) and adds the third dimension to facial points.
-    
-    * **TODO:** Delete and rewrite to something more sophisticated
+Optimization to the generic 3D face model should be done, so that the shape resembles the one of the person (for example: eye width, eye-nose-eye distance etc.). This could be done using one or several photos of different angles of a person
 
-* `get_ground_truth(frame, facial_ponts_extractor)`
-    * **Description:** Dummy function to detect the facial points from a frame where roll, yaw and pitch are all supposed to be 0 ("ground truth" picture).
+### TODO
 
-    * **TODO:** Delete and rewrite to something more sophisticated
-
-**TODO:** Move some methods from pose.py (for example loading the head pose from the `.txt` file)
+- Implement 3D face model optimization
 
 ## Head pose estimation
 
-We use a single monocular RGB camera to accurately track the 3D position and rotations of the face in space. While this, in principle, is a simple PnP problem, we combine facial features extraction, Kalman filter and tuned PnP algorithm to achieve high accuracy. To estimate head pose, we need:
+We use a single monocular RGB camera to accurately track the 3D position and rotations of the face in space. While this, in principle, is a simple PnP problem, we combine facial features extraction and tuned PnP algorithm to achieve high accuracy. To estimate head pose, we need:
 
 * 2D image plane coordinates of the facial landmarks (we get this from `points_extractor.py`).
-* 3D model/world (in our case model) coordinates of the face.
+* 3D model/world coordinates of the face.
 
 Points we currently use for head pose estimation (these are the points which we assume only change when head pose changes):
 
@@ -141,61 +176,50 @@ Points we currently use for head pose estimation (these are the points which we 
 
 Thus, other points are assumed to have no effect on head pose and could be changed at static head pose (for example - moving eyebrows up and down while not moving the head).
 
-### pose.py
+### PnP problem
 
-* `_solve_pnp(image_points, model_points, prev_rvec = None, prev_tvec = None)`
-    * **Description:** The function estimates the head pose: it gives the rotation and translation vectors (**extrinsic parameters**) that bring the object from its 3D model/world (in our case model) coordinates to 3D camera coordinates (and then this would get projected to the image plane and we'd get the image that we see). Maths behind PnP are explained <a href="https://docs.opencv.org/3.0-beta/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html">in the opencv docs</a>. This typically involves iterative calculations and the result isn't 100% accurate because of the nature of the equation (the algorithm is minimizing the reprojection error). We use `cv2.solvePnP()` method - to achieve better accuracy, when possible, we pass previous frame's rotation and translation vector and use what is called extrinsic guess.
+Rotation and translation vectors (**extrinsic parameters**) together with camera parameters (**intrinsic parameters**) bring the object from its 3D model/world coordinates to 3D camera coordinates (and then this would get projected to the image plane to get the actual image). Maths behind PnP are explained <a href="https://docs.opencv.org/3.0-beta/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html">in opencv docs</a>. This typically involves iterative calculations and the result isn't 100% accurate because of the nature of the equation (the algorithm is minimizing the reprojection error). We use `cv2.solvePnP()` method - to achieve better accuracy, when possible, we pass previous frame's rotation and translation vector and use what is called extrinsic guess.
 
-    * **TODO:** Play with the parameters, see how different options influence the overall accuracy
+### Rotation matrix vs. rotation vector
 
-* `_get_rotation_matrix(rotation_vector)`
-    * **Description:** Rotation vector is a convenient and most compact representation of a rotation matrix (since any rotation matrix has just 3 degrees of freedom). The direction of that vector indicates the axis of rotation, while the length (or “norm”) of the vector gives the angle. A good description of this is this <a href="https://stackoverflow.com/a/13824496/7343355">stackoverflow answer</a>. Basically, it is an example of axis-angle representation (image below) and we may want to convert from this representation to rotation matrix and then euler angles (human readability or other reasons). More on this <a href="https://en.wikipedia.org/wiki/Rotation_formalisms_in_three_dimensions">here</a>. Thus, we just use in-built function `cv2.Rodrigues()` to convert to matrix.
+Rotation vector is a convenient and most compact representation of a rotation matrix (since any rotation matrix has just 3 degrees of freedom). The direction of that vector indicates the axis of rotation, while the length (or “norm”) of the vector gives the angle. A good description of this is this <a href="https://stackoverflow.com/a/13824496/7343355">stackoverflow answer</a>. Basically, it is an example of axis-angle representation (image below) and we may want to convert from this representation to rotation matrix and then euler angles (human readability or other reasons). More on this <a href="https://en.wikipedia.org/wiki/Rotation_formalisms_in_three_dimensions">here</a>. Thus, we just use in-built function `cv2.Rodrigues()` to convert to matrix.
 
-    <p align="center">
-        <img src="https://i.stack.imgur.com/SvTtB.png" width=250>
-    </p>
+<p align="center">
+    <img src="https://i.stack.imgur.com/SvTtB.png" width=250>
+</p>
 
-* `_get_euler_angles(rotation_matrix, translation_vector)`
-    * **Description:** From rotation matrix to euler angles. This uses `cv2.decomposeProjectionMatrix()` which computes a decomposition of a projection matrix into a calibration and a rotation matrix and the position of a camera. It also gives Euler angles - order is not specified, I got it from <a href="https://answers.opencv.org/question/16796/computing-attituderoll-pitch-yaw-from-solvepnp/?answer=52913#post-id-52913">here</a>. Projection matrix - 3x4 matrix obtained by multiplying camera matrix by [rotation|translation] matrix, described <a href="https://answers.opencv.org/question/13545/how-to-obtain-projection-matrix/">here</a>
+### Euler angles
 
-    <p align="center">
-        <img src="https://www.researchgate.net/profile/Desmond_Fitzgerald3/publication/275771788/figure/fig1/AS:294452435406864@1447214339279/The-Euler-angles-Roll-Pitch-and-Yaw-Prior-to-magnetic-compensation-the-recorded.png">
-    </p>
+Our implementation uses `cv2.decomposeProjectionMatrix()` method to get euler angles from rotation matrix. `cv2.decomposeProjectionMatrix()` computes a decomposition of a projection matrix into a calibration and a rotation matrix and the position of a camera. It also gives Euler angles - order is not specified, I got it from <a href="https://answers.opencv.org/question/16796/computing-attituderoll-pitch-yaw-from-solvepnp/?answer=52913#post-id-52913">here</a>. Projection matrix - 3x4 matrix obtained by multiplying camera matrix by [rotation|translation] matrix, described <a href="https://answers.opencv.org/question/13545/how-to-obtain-projection-matrix/">here</a>
 
-    * **TODO:** Check the order of Euler angles (pretty sure yaw, pitch, roll are ZYX)
+<p align="center">
+    <img src="https://www.researchgate.net/profile/Desmond_Fitzgerald3/publication/275771788/figure/fig1/AS:294452435406864@1447214339279/The-Euler-angles-Roll-Pitch-and-Yaw-Prior-to-magnetic-compensation-the-recorded.png">
+</p>
 
-* `_get_camera_world_coord(rotation_matrix, t_vector)`
-    * **Description:** <a href="https://answers.opencv.org/question/133855/does-anyone-actually-use-the-return-values-of-solvepnp-to-compute-the-coordinates-of-the-camera-wrt-the-object-in-the-world-space/">Link to the explanation</a>. Basically "the return values from `cv2.solvePnP()` are the rotation and translation of the object in camera coordinate system." We can use these return values to compute camera pose w.r.t. the object in the world space: invert the rotation (transpose), then the translation is the negative of the rotated translation. For example, if the object is static and the camera is moving, we can use this to determine the camera movement.
+### Camera world coordinates 
 
-    * **TODO:** Do 3D live and prerecorded UI for this
+Our implementation provides a way to get camera's position in world coordinates. <a href="https://answers.opencv.org/question/133855/does-anyone-actually-use-the-return-values-of-solvepnp-to-compute-the-coordinates-of-the-camera-wrt-the-object-in-the-world-space/">Link to the explanation</a>. Basically "the return values from `cv2.solvePnP()` are the rotation and translation of the object in camera coordinate system." We can use these return values to compute camera pose w.r.t. the object in the world space: invert the rotation (transpose), then the translation is the negative of the rotated translation. For example, if the object is static and the camera is moving, we can use this to determine the camera movement.
 
-* `_choose_pose_points(facial_points)` and `_prepare_face_model()`
-    * **Description:** Extracting the relevant points for pose estimation from the model file (`resources/face_model.txt`) which was described earlier in this section. We then chose the points (obtained from the model or detection) which we will be using to solve PnP.
+### TODO 
 
-    * **TODO:** Put the chosen points in `config.py` for readability
-
-* `estimate_pose(facial_points_all)`
-    * **Description:** Estimate 3D pose of an object in camera coordinates from given facial points using the above methods.
-
-    * **TODO:** Fix reference errors
-
-**TODO:** 
-
-* Do the head pose estimation using stereo camera setup. In this case, we'd get more accuracy. Also this would be useful in many other stuff like determining the shape of the head etc.
-
-* Try different points for pose estimation, see which one gives the best results
-
-* Try to account for opening the mouth (jaw points are then also affected) etc.
-
-* Sometimes `pose.py` gives wrong rotation values - roll is around 180&deg; instead of 0&deg; which doesn't make any sense. This can be seen particularly well in `live_3D.py`. Need to account for this somehow.
+- Try stereo camera setup for head pose estimation for higher accuracy. This would also be useful when determining shape of the head etc.
+- Play with pose estimation parameters and pose points to increase accuracy
+- Try out different pose estimation algorithms
+- Try to account for opening of the mouth (jaw points are also affected)
+- Check the order of Euler angles (pretty sure yaw, pitch, roll are ZYX)
+- Sometimes `pose.py` gives wrong rotation values - roll is around 180&deg; instead of 0&deg; which doesn't make any sense. This was discussed in several forums.
 
 ## Normalization of eye points
 
-Eye area depends on various factors that are impossible to control, such as the parameters of the camera, head movement, natural eye shape and closeness to the screen to name a few. To solve this problem, we came up with an algorithm that maps eye points on a universal size grid, which can be then used to compare eyes in different environments.
+This is the core algorithm of the eye closedness detection.
 
-Idea: we need to connect head pose with eye area estimation. This could be done by measuring the percentage difference of the "closeness" of the eyes (how much the area differs from what we percieve to be the normal 100% area). 
+Eye area depends on various factors that are impossible to control, such as the parameters of the camera, head movement, natural eye shape and closeness to the screen to name a few. To solve this problem, we came up with an algorithm that accounts for all of this and can be used to compare person's eyes in different environments.
 
-1. We need this "ground truth" of eye closedness - for development purposes, we will just use what we think is supposed to be ground truth, we will improve it later. 
+### Idea
+
+We need to connect head pose with eye area estimation. This could be done by measuring the percentage difference of the "closedness" of the eyes (how much the area differs from what we percieve to be the normal 100% area). 
+
+1. We need "ground truth" of eye closedness - for development purposes, we will just use what we think is supposed to be ground truth, we will improve it later. 
 
 2. We determine the head pose in a single frame: we assume that points **37, 40, 43 and 46** stay static when eyes are being closed and we don't take into account points **38, 39, 41, 42, 44, 45, 47 and 48** (which can move if we close the eyes). 
 
@@ -209,40 +233,12 @@ This can be used on any frame and we don't need to concern ourselves with anythi
 
 As seen in the above photo, we can clearly notice how half closed detected points give a smaller area compared to model ("ground truth"). This can be done on any face angle using the rotation and translation vectors we obtained, thus accounting for all types of head movements. The corners should theoretically be at the same place for both types of points, but this is not achieved because of accuracy of head pose estimation and face model being too generic.
 
-* **TODO:** Fix the way coordinates are stored and optimize `face_model.txt`, as currently it's a very approximate model.
-
 ## 3D visualization software
 
 Currently we're using `pyqtgraph`to plot the 3D visualizations. This python library uses OpenGL for 3D object rendering and the application itself is a Qt app. However, there's a known bug (descibred <a href="">here</a>) which basically means that on some devices (like Macs) we can only use 1/4th of the display.
 
-## Example logic flow
+## Team
 
-```python
-# Calibrate camera
-camera_model = CameraModel()
-camera_model.calibrate_custom_parameters(CAMERA_MATRIX, DIST_COEFFS)
-
-# Load frames
-frames = load_part_of_the_video('video.mov')
-
-# Prepare frames for processing
-frames = gray_and_resize(frames)
-
-# Setup points extractor
-points_extractor = FacialPointsExtractor()
-
-# Extract facial points
-facial_points_all = points_extractor.extract_facial_points(frames)
-
-# Estimate pose
-r_vectors_all, t_vectors_all, angles_all, camera_world_coord_all = estimate_pose(facial_points_all)
-
-# (Restore scale/color of frames if needed)
-
-# Draw on frames
-frames = draw_facial_points(frames, facial_points_all)
-frames = draw_pose(frames, facial_points_all, r_vectors_all, t_vectors_all, camera_model.get_camera_matrix(), camera_model.get_distortion_coeff())
-
-# Show frames
-display_video(frames)
-```
+- <a href="https://github.com/universvm">Universvm</a>
+- <a href="https://github.com/K-Kielak">K-Kielak</a>
+- <a href="https://github.com/KaroliShp">Karolishp</a>

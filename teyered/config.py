@@ -9,7 +9,6 @@ RESOURCES_DIR = os.path.join(PROJECT_ROOT_DIR, 'resources')
 PRERECORDED_VIDEO_DIR = os.path.join(PROJECT_ROOT_DIR, 'test_footage')
 REPORTS_DIR = os.path.join(PROJECT_ROOT_DIR, 'reports')
 
-# Resources paths
 PREDICTOR_FILENAME = 'shape_predictor_68_face_landmarks.dat'
 PREDICTOR_FILEPATH = os.path.join(RESOURCES_DIR, PREDICTOR_FILENAME)
 
