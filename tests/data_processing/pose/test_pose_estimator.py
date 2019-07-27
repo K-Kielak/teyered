@@ -4,6 +4,7 @@ from hamcrest import *
 import numpy as np
 
 from teyered.data_processing.pose.face_model_processing import load_face_model
+from teyered.data_processing.pose.pose_estimator import PoseEstimator
 
 
 @pytest.fixture
