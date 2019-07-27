@@ -3,8 +3,10 @@ import logging
 import cv2
 import numpy as np
 
-from teyered.config import JAW_COORDINATES, NOSE_COORDINATES, CAMERA_MATRIX, \
-    DIST_COEFFS
+from teyered.config import JAW_COORDINATES, NOSE_COORDINATES, CAMERA_MATRIX
+from teyered.config import DIST_COEFFS
+from teyered.data_processing.projection import project_points
+from teyered.data_processing.projection import calculate_reprojection_error
 
 
 logger = logging.getLogger(__name__)
@@ -14,7 +16,7 @@ class PoseEstimator:
 
     def __init__(self, model_points, camera_matrix=CAMERA_MATRIX,
                  dist_coeffs=DIST_COEFFS):
-        self._model_points_pose = self._choose_pose_points(model_points)
+        self._model_points_pose = self.choose_pose_points(model_points)
         self._camera_matrix = camera_matrix
         self._dist_coeffs = dist_coeffs
 
@@ -35,12 +37,15 @@ class PoseEstimator:
     def get_model_points_pose(self):
         return self._model_points_pose
 
-    def _choose_pose_points(self, facial_points):
+    def choose_pose_points(self, facial_points):
         """
         Choose facial points which will be used to solve PnP
         :param facial_points: Facial points adhering to face model requirements
         :return: np.ndarray of tuples for specific facial points
         """
+        if facial_points.shape[0] != 68:
+            raise ValueError('facial_points doesnt have the correct shape')
+
         points_jaw = facial_points[slice(*JAW_COORDINATES)]
         points_nose = facial_points[slice(*NOSE_COORDINATES)]
         points_r_eye = [facial_points[i] for i in [36, 39]]  # Corners
@@ -86,6 +91,9 @@ class PoseEstimator:
         :param image_points: Image points at this specific frame
         :return: np.ndarray of rotation and translation vectors for the frame
         """
+        if image_points is None:
+            raise ValueError('image_points cannot be None')
+
         if self._prev_rvec is None or self._prev_tvec is None:
             _, r_vector, t_vector = cv2.solvePnP(self._model_points_pose,
                                                  image_points,
@@ -114,6 +122,30 @@ class PoseEstimator:
         camera_pose_world = -np.matrix(rotation_matrix).T * np.matrix(t_vector)
         return camera_pose_world.reshape(1, -1)
 
+    def calculate_pose_reprojection_error(self, facial_points_all,
+                                          r_vectors_all, t_vectors_all):
+        """
+        Calculate pose reprojection error to get the accuracy
+        :param facial_points_all: Scaled facial points coordinates for all
+        frames
+        :param r_vectors_all: Rotation vectors for all frames
+        :param t_vectors_all: Translation vectors for all frames
+        :return: np.ndarray of float values of the reprojection error for each
+        frame
+        """
+        if facial_points_all.shape[0] != r_vectors_all.shape[0]:
+            raise ValueError('facial_points_all and r_vectors_all must have the '
+                             'same array length')
+
+        model_points_pose_projected_all = project_points(self._model_points_pose,
+                                                         r_vectors_all,
+                                                         t_vectors_all,
+                                                         self._camera_matrix,
+                                                         self._dist_coeffs)
+        errors = calculate_reprojection_error(facial_points_all, 
+                                              model_points_pose_projected_all)
+        return errors
+
     def estimate_pose(self, facial_points_all):
         """
         Estimate 3D pose of an object in camera coordinates from given
@@ -125,14 +157,15 @@ class PoseEstimator:
         frame as np.ndarray
         """
         if facial_points_all.size < 1:
-            raise ValueError(
-                'Facial points must be provided for at least one frame')
+            raise ValueError('Facial points must be provided for at '
+                             'least one frame')
 
         # Information to be returned
         r_vectors_all = []
         t_vectors_all = []
         angles_all = []
         camera_world_coord_all = []
+        facial_points_pose_all = []
 
         for facial_points in facial_points_all:
 
@@ -146,21 +179,23 @@ class PoseEstimator:
                 self._prev_tvec = None
                 continue
 
-            facial_points_pose = self._choose_pose_points(facial_points)
+            facial_points_pose = self.choose_pose_points(facial_points)
+            facial_points_pose_all.append(np.copy(facial_points_pose))
             r_vector, t_vector = self._solve_pnp(facial_points_pose)
             rotation_matrix, _ = self._get_rotation_matrix(r_vector)
             yaw, pitch, roll = self._get_euler_angles(rotation_matrix,
                                                       t_vector)
             camera_world_coord = self._get_camera_world_coord(rotation_matrix,
                                                               t_vector)
+            
 
             r_vectors_all.append(np.copy(r_vector))
             t_vectors_all.append(np.copy(t_vector))
             angles_all.append(np.array([yaw, pitch, roll]))
             camera_world_coord_all.append(np.copy(camera_world_coord))
 
-            self._prev_rvec = r_vector
-            self._prev_tvec = t_vector
+            self._prev_rvec = np.copy(r_vector)
+            self._prev_tvec = np.copy(t_vector)
 
         logger.debug('Pose estimation has finished successfully')
         return (np.array(r_vectors_all), np.array(t_vectors_all),

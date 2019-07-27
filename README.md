@@ -36,10 +36,18 @@ for batch in batches:
     # Estimate pose
     r_vectors_all, t_vectors_all, angles_all, camera_wc_all = pose_estimator.estimate_pose(facial_points_all)
 
+    # Get reprojection error to see how well it performs
+    errors = pose_estimator.calculate_pose_reprojection_error(facial_points_all,
+                                                              r_vectors_all,
+                                                              t_vectors_all)
+
     # Calculate eye closedness percentage and reprojection error
-    c_left_all, c_right_all, err_left_all, err_right_all = calculate_eye_closedness(
-        facial_points_all, model_points, r_vectors_all, t_vectors_all
-    )
+    c_left_all, c_right_all = calculate_eye_closedness(facial_points_all, 
+                                                       model_points, 
+                                                       r_vectors_all, 
+                                                       t_vectors_all)
+
+    # Blink detection
 
     # Do further analysis/save info from the batch
 ```

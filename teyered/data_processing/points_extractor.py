@@ -5,8 +5,8 @@ import dlib
 import numpy as np
 from imutils import face_utils
 
-from teyered.config import IMAGE_UPSAMPLE_FACTOR, PREDICTOR_FILEPATH, \
-    TRACKING_LENGTH
+from teyered.config import IMAGE_UPSAMPLE_FACTOR, PREDICTOR_FILEPATH
+from teyered.config import TRACKING_LENGTH
 
 
 logger = logging.getLogger(__name__)
@@ -23,8 +23,7 @@ class FacialPointsExtractor:
         self._LK_PARAMS = dict(winSize=(15, 15), maxLevel=3,
                                criteria=(cv2.TERM_CRITERIA_EPS |
                                          cv2.TERM_CRITERIA_COUNT,
-                                         10, 0.03)
-                               )
+                                         10, 0.03))
 
         # Previous batch information
         self._previous_frame = None
@@ -114,29 +113,31 @@ class FacialPointsExtractor:
             # next iteration
             if detected_facial_points is None:
                 facial_points_all.append(None)
+                self._previous_points = None
+                self._previous_frame = None
                 self._frame_count = 0
                 continue
 
             # (Re)detect at every TRACKING_LENGTHth frame
             if self._frame_count % TRACKING_LENGTH == 0:
-                self._previous_points = detected_facial_points
-                self._previous_frame = frame
+                self._previous_points = np.copy(detected_facial_points)
+                self._previous_frame = np.copy(frame)
                 self._frame_count = 1
             # Track
             else:
                 self._previous_points = self._track_facial_points_LK(
                     frame, detected_facial_points
                 )
-                self._previous_frame = frame
+                self._previous_frame = np.copy(frame)
                 self._frame_count += 1
 
                 # Tracking is unsuccessful, redetect
                 if self._previous_points is None:
-                    self._previous_points = detected_facial_points
+                    self._previous_points = np.copy(detected_facial_points)
                     self._frame_count = 1
 
             facial_points_all.append(np.copy(self._previous_points))
 
-        logger.debug(
-            'Facial points were successfully extracted from the video batch')
+        logger.debug('Facial points were successfully extracted from the '
+                     'video batch')
         return np.array(facial_points_all)
