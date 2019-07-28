@@ -33,13 +33,8 @@ for batch in batches:
     # Extract facial points
     facial_points_all = points_extractor.extract_facial_points(frames)
 
-    # Estimate pose
-    r_vectors_all, t_vectors_all, angles_all, camera_wc_all = pose_estimator.estimate_pose(facial_points_all)
-
-    # Get reprojection error to see how well it performs
-    errors = pose_estimator.calculate_pose_reprojection_error(facial_points_all,
-                                                              r_vectors_all,
-                                                              t_vectors_all)
+    # Estimate pose and get pose reprojection error
+    r_vectors_all, t_vectors_all, angles_all, camera_wc_all, err_all = pose_estimator.estimate_pose(facial_points_all)
 
     # Calculate eye closedness percentage
     c_left_all, c_right_all = calculate_eye_closedness(facial_points_all, 
