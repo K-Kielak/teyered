@@ -3,9 +3,9 @@ import numpy as np
 from hamcrest import *
 from pytest_mock import mocker
 
+from teyered.config import FACE_COORDINATES_NUM
 from teyered.data_processing.pose.face_model_processing import load_face_model
 from teyered.data_processing.pose.pose_estimator import PoseEstimator
-from teyered.config import FACE_COORDINATES_NUM
 
 
 @pytest.fixture
