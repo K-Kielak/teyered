@@ -3,8 +3,8 @@ import logging
 import cv2
 import numpy as np
 
-from teyered.config import JAW_COORDINATES, NOSE_COORDINATES, CAMERA_MATRIX
-from teyered.config import DIST_COEFFS
+from teyered.config import CAMERA_MATRIX, DIST_COEFFS, POSE_COORDINATES
+from teyered.config import FACE_COORDINATES_NUM
 from teyered.data_processing.projection import project_points
 from teyered.data_processing.projection import calculate_reprojection_error
 
@@ -16,7 +16,7 @@ class PoseEstimator:
 
     def __init__(self, model_points, camera_matrix=CAMERA_MATRIX,
                  dist_coeffs=DIST_COEFFS):
-        self._model_points_pose = self.choose_pose_points(model_points)
+        self._model_points_pose = model_points[POSE_COORDINATES]
         self._camera_matrix = camera_matrix
         self._dist_coeffs = dist_coeffs
 
@@ -36,26 +36,6 @@ class PoseEstimator:
 
     def get_model_points_pose(self):
         return self._model_points_pose
-
-    def choose_pose_points(self, facial_points):
-        """
-        Choose facial points which will be used to solve PnP
-        :param facial_points: Facial points adhering to face model requirements
-        :return: np.ndarray of tuples for specific facial points
-        """
-        if facial_points.shape[0] != 68:
-            raise ValueError('facial_points doesnt have the correct shape')
-
-        points_jaw = facial_points[slice(*JAW_COORDINATES)]
-        points_nose = facial_points[slice(*NOSE_COORDINATES)]
-        points_r_eye = [facial_points[i] for i in [36, 39]]  # Corners
-        points_l_eye = [facial_points[i] for i in [42, 45]]  # Corners
-        points_mouth = [facial_points[i] for i in [48, 54]]  # Corners
-
-        points = np.concatenate((points_jaw, points_nose, points_r_eye,
-                                 points_l_eye, points_mouth))
-
-        return np.array([tuple(p) for p in points], dtype='double')
 
     def _get_euler_angles(self, rotation_matrix, translation_vector):
         """
@@ -122,29 +102,22 @@ class PoseEstimator:
         camera_pose_world = -np.matrix(rotation_matrix).T * np.matrix(t_vector)
         return camera_pose_world.reshape(1, -1)
 
-    def calculate_pose_reprojection_error(self, facial_points_all,
-                                          r_vectors_all, t_vectors_all):
+    def _calculate_pose_reprojection_error(self, pose_points,
+                                           r_vec, t_vec):
         """
         Calculate pose reprojection error to get the accuracy
-        :param facial_points_all: Scaled facial points coordinates for all
-        frames
-        :param r_vectors_all: Rotation vectors for all frames
-        :param t_vectors_all: Translation vectors for all frames
-        :return: np.ndarray of float values of the reprojection error for each
-        frame
+        :param pose_points: Scaled facial points coordinates
+        :param r_vec: Rotation vector
+        :param t_vec: Translation vector
+        :return: Float representing the reprojection error
         """
-        if facial_points_all.shape[0] != r_vectors_all.shape[0]:
-            raise ValueError('facial_points_all and r_vectors_all must have the '
-                             'same array length')
-
-        model_points_pose_projected_all = project_points(self._model_points_pose,
-                                                         r_vectors_all,
-                                                         t_vectors_all,
-                                                         self._camera_matrix,
-                                                         self._dist_coeffs)
-        errors = calculate_reprojection_error(facial_points_all, 
-                                              model_points_pose_projected_all)
-        return errors
+        model_points_pose_projected = project_points(self._model_points_pose,
+                                                     np.array([r_vec]),
+                                                     np.array([t_vec]),
+                                                     self._camera_matrix,
+                                                     self._dist_coeffs)
+        return calculate_reprojection_error(np.array([pose_points]), 
+                                            model_points_pose_projected)[0]
 
     def estimate_pose(self, facial_points_all):
         """
@@ -165,7 +138,7 @@ class PoseEstimator:
         t_vectors_all = []
         angles_all = []
         camera_world_coord_all = []
-        facial_points_pose_all = []
+        errors_all = []
 
         for facial_points in facial_points_all:
 
@@ -175,28 +148,36 @@ class PoseEstimator:
                 t_vectors_all.append(None)
                 angles_all.append(None)
                 camera_world_coord_all.append(None)
+                errors_all.append(-1)
                 self._prev_rvec = None
                 self._prev_tvec = None
                 continue
 
-            facial_points_pose = self.choose_pose_points(facial_points)
-            facial_points_pose_all.append(np.copy(facial_points_pose))
+            if facial_points.shape[0] != FACE_COORDINATES_NUM:
+                raise ValueError('Facial points have a wrong shape')
+
+            facial_points_pose = facial_points[POSE_COORDINATES].astype(
+                np.float32)
             r_vector, t_vector = self._solve_pnp(facial_points_pose)
             rotation_matrix, _ = self._get_rotation_matrix(r_vector)
             yaw, pitch, roll = self._get_euler_angles(rotation_matrix,
                                                       t_vector)
             camera_world_coord = self._get_camera_world_coord(rotation_matrix,
                                                               t_vector)
+            err = self._calculate_pose_reprojection_error(facial_points_pose,
+                                                          r_vector,
+                                                          t_vector)
             
-
             r_vectors_all.append(np.copy(r_vector))
             t_vectors_all.append(np.copy(t_vector))
             angles_all.append(np.array([yaw, pitch, roll]))
             camera_world_coord_all.append(np.copy(camera_world_coord))
+            errors_all.append(err)
 
             self._prev_rvec = np.copy(r_vector)
             self._prev_tvec = np.copy(t_vector)
 
         logger.debug('Pose estimation has finished successfully')
         return (np.array(r_vectors_all), np.array(t_vectors_all),
-                np.array(angles_all), np.array(camera_world_coord_all))
+                np.array(angles_all), np.array(camera_world_coord_all),
+                np.array(errors_all))

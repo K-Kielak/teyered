@@ -41,7 +41,7 @@ for batch in batches:
                                                               r_vectors_all,
                                                               t_vectors_all)
 
-    # Calculate eye closedness percentage and reprojection error
+    # Calculate eye closedness percentage
     c_left_all, c_right_all = calculate_eye_closedness(facial_points_all, 
                                                        model_points, 
                                                        r_vectors_all, 
@@ -54,11 +54,11 @@ for batch in batches:
 
 ## Facial features extraction
 
-We combine CNN facial points detection and Lukas-Kanade optical flow tracker to extract the most accurate representation of facial features at any point in time. Noise of the facial landmarks data is partially due to the fact that the facial features are only detected and never tracked. 
+We combine CNN facial points detection and Lukas-Kanade optical flow tracker to extract the most accurate representation of facial features at any point in time. Noise of the facial landmarks data was partially due to the fact that the facial features are only detected and never tracked.
 
 Detected means that we detect facial features in each frame indepentently of previous frames. Thus, facial features points are not necessarily "the same points" throughout consecutive pictures. 
 
-Tracking means using something like Lukas-Kanade optical flow tracker. This would give (nearly) the same matching points for consecutive frames, thus way less noise, which is later an important factor for estimating pose. Another reason for using tracking is that it should be less computationally costly than detection.
+Tracking means using something like Lukas-Kanade optical flow tracker. This gives us (nearly) the same matching points for consecutive frames, thus way less noise, which is later an important factor for estimating pose. Another reason for using tracking is that it should be less computationally costly than detection.
 
 ### LK tracking
 
@@ -122,7 +122,7 @@ We, just like `dlib`, use the following 2D and 3D face models:
 * **Nose:** [28-36] (**tip of the nose:** 31)
 * **Left eye:** [37-42]
 * **Right eye:** [43-48]
-* **Mouth:** [49-64]
+* **Mouth:** [49-68]
 
 From a person's perspective, your right eye is left eye in this diagram.
 

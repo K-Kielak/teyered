@@ -24,7 +24,8 @@ def calculate_eye_closedness(extracted_points_all, model_points,
     :param t_vectors_all: Translation vectors for all frames
     :param camera_matrix: Intrinsic parameters
     :param dist_coeffs: Intrinsic parameters
-    :return: np.ndarray of eye closedness percentage
+    :return: np.ndarray of either eye closedness ratio or value -1 if
+    it cannot be determined 
     """
     if extracted_points_all.shape[0] != r_vectors_all.shape[0]:
         raise ValueError('extracted_points_all and r_vectors_all arrays '
@@ -69,8 +70,8 @@ def calculate_eye_closedness(extracted_points_all, model_points,
         )
 
         if projected_area_left == 0 or projected_area_right == 0:
-            eye_closedness_left_all.append(0)
-            eye_closedness_right_all.append(0)
+            eye_closedness_left_all.append(-1)
+            eye_closedness_right_all.append(-1)
             continue
 
         # (x < 1) == more closed, (x > 1) == more open than usual, 1 == 100%
