@@ -1,7 +1,7 @@
 import pytest
-from pytest_mock import mocker
-from hamcrest import *
 import numpy as np
+from hamcrest import *
+from pytest_mock import mocker
 
 from teyered.data_processing import eyes_processing
 
@@ -30,8 +30,8 @@ triangle = np.array([[[1, 1], [2, 2], [3, 1]]])
                          'proj_pts_right,eo_left,eo_right', [
     (
             np.full((1, 3, 2), 1), np.full((1, 3, 2), 1),
-            np.full((1, 3, 2), 2), np.full((1, 3, 2), 2), np.full(1, 0),
-            np.full(1, 0)
+            np.full((1, 3, 2), 2), np.full((1, 3, 2), 2), np.full(1, -1),
+            np.full(1, -1)
     ), (
             triangle, triangle, triangle, triangle, np.full(1, 1),
             np.full(1, 1)
@@ -46,8 +46,8 @@ triangle = np.array([[[1, 1], [2, 2], [3, 1]]])
             np.array([None, np.full((3, 2), 1)]),
             np.array([None, np.full((3, 2), 1)]),
             np.array([None, np.full((3, 2), 1)]),
-            np.array([None, np.full((3, 2), 1)]), np.array([-1, 0]),
-            np.array([-1, 0])
+            np.array([None, np.full((3, 2), 1)]), np.array([-1, -1]),
+            np.array([-1, -1])
     )
 ])
 def test_eye_closedness(mocker, ex_pts_left, proj_pts_left, ex_pts_right,
@@ -73,14 +73,9 @@ def test_eye_closedness(mocker, ex_pts_left, proj_pts_left, ex_pts_right,
     assert_that(eyes_processing._project_eye_points.call_count, equal_to(1))
 
 
-@pytest.mark.parametrize('corner_points', [
-    (
-            np.random.rand(1, 2, 2)
-    )
-])
-def test_polygon_area_bad_input(corner_points):
+def test_polygon_area_bad_input():
     assert_that(calling(eyes_processing._calculate_polygon_area).with_args(
-        corner_points), raises(ValueError))
+                        np.random.rand(1, 2, 2)), raises(ValueError))
 
 
 @pytest.mark.parametrize('corner_points,expected_output', [

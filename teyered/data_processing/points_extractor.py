@@ -11,6 +11,9 @@ from teyered.config import TRACKING_LENGTH
 
 logger = logging.getLogger(__name__)
 
+ITERATIONS = 10
+MOVE_PTS = 0.03
+
 
 class FacialPointsExtractor:
 
@@ -23,7 +26,7 @@ class FacialPointsExtractor:
         self._LK_PARAMS = dict(winSize=(15, 15), maxLevel=3,
                                criteria=(cv2.TERM_CRITERIA_EPS |
                                          cv2.TERM_CRITERIA_COUNT,
-                                         10, 0.03))
+                                         ITERATIONS, MOVE_PTS))
 
         # Previous batch information
         self._previous_frame = None

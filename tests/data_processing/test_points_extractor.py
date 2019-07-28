@@ -1,7 +1,7 @@
 import pytest
-from pytest_mock import mocker
-from hamcrest import *
 import numpy as np
+from hamcrest import *
+from pytest_mock import mocker
 
 from teyered.data_processing.points_extractor import FacialPointsExtractor
 
@@ -11,13 +11,8 @@ def fp():
     return FacialPointsExtractor()
 
 
-@pytest.mark.parametrize('frames', [
-    (
-            np.array([])
-    )
-])
-def test_extract_fp_no_frames(fp, frames):
-    assert_that(calling(fp.extract_facial_points).with_args(frames),
+def test_extract_fp_no_frames(fp):
+    assert_that(calling(fp.extract_facial_points).with_args(np.array([])),
                 raises(ValueError))
 
 

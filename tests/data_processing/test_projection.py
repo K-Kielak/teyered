@@ -1,8 +1,8 @@
+import cv2
 import pytest
+import numpy as np
 from hamcrest import *
 from pytest_mock import mocker
-import numpy as np
-import cv2
 
 from teyered.data_processing.projection import project_points
 from teyered.data_processing.projection import calculate_reprojection_error
