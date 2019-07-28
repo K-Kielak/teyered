@@ -156,8 +156,7 @@ class PoseEstimator:
             if facial_points.shape[0] != FACE_COORDINATES_NUM:
                 raise ValueError('Facial points have a wrong shape')
 
-            facial_points_pose = facial_points[POSE_COORDINATES].astype(
-                np.float32)
+            facial_points_pose = facial_points[POSE_COORDINATES].astype(np.float32)
             r_vector, t_vector = self._solve_pnp(facial_points_pose)
             rotation_matrix, _ = self._get_rotation_matrix(r_vector)
             yaw, pitch, roll = self._get_euler_angles(rotation_matrix,
