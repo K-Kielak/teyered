@@ -47,12 +47,18 @@ class VideoGenerator:
         logger.info(f'Closing video {self._vid_path}:')
         self._vid.release()
 
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return self.get_next_frame()
+
     def get_next_frame(self):
         if not self.is_open():
             raise IOError('Cannot process the video, file is not open.')
 
         if self.is_over():
-            raise IOError('Video is over, cannot read next frame.')
+            raise StopIteration('Video is over, cannot read next frame.')
 
         frame_timespan, frame = self._next_frame_data
         self._read_next_frame()
