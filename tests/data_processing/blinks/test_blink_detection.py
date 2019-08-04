@@ -1,8 +1,8 @@
 import pytest
 from hamcrest import *
 
-from teyered.data_processing.blink import Blink
-from teyered.data_processing.blinks_detection import detect_blinks
+from teyered.data_processing.blinks.blinks_detection import detect_blinks
+from teyered.data_processing.blinks.blink import Blink
 
 
 @pytest.mark.parametrize('measurements,expected_output', [

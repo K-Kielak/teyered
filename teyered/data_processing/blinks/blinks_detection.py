@@ -1,6 +1,6 @@
 from math import sqrt
 
-from teyered.data_processing.blink import Blink
+from teyered.data_processing.blinks.blink import Blink
 
 
 # How many standard deviations below eyes average should indicate
