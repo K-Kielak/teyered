@@ -3,7 +3,7 @@ import numpy as np
 from hamcrest import *
 from pytest_mock import mocker
 
-from teyered.data_processing.points_extractor import FacialPointsExtractor
+from teyered.data_processing.facial_points_extractor import FacialPointsExtractor
 
 
 @pytest.fixture
