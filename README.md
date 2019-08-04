@@ -18,33 +18,23 @@ Machine Learning and Computer Vision framework for tiredness detection.
 Assuming that the video is loaded and analysed in batches (where batch is a list of consecutive frames):
 
 ```python
-# Set up objects and 3D face model
-camera_model = CameraModel()
-points_extractor = FacialPointsExtractor()
-model_points = load_face_model()
-pose_esimator = PoseEstimator(model_points)
+from teyered.teyered_processor import TeyeredProcessor
 
-# Load batches in your preferred way
-for batch in batches:
+processor = TeyeredProcessor()
 
-    # Prepare frames for processing
-    frames = gray_video(resize_video(batch))
-
-    # Extract facial points
-    facial_points_all = points_extractor.extract_facial_points(frames)
-
-    # Estimate pose and get pose reprojection error
-    r_vectors_all, t_vectors_all, angles_all, camera_wc_all, err_all = pose_estimator.estimate_pose(facial_points_all)
-
-    # Calculate eye closedness percentage
-    c_left_all, c_right_all = calculate_eye_closedness(facial_points_all, 
-                                                       model_points, 
-                                                       r_vectors_all, 
-                                                       t_vectors_all)
-
+# Load frame batches in your preferred way
+for batch in video1:
+    # Processing output defined by teyered.teyered_processor.ProcessingOutput
+    processing_output = processor.process(batch)
     # Blink detection
-
     # Do further analysis/save info from the batch
+    
+# Reset processor before analysing another video
+processor.reset()
+
+for batch in video2:
+    processing_output = processor.process(batch)
+    # ...
 ```
 
 ## Facial features extraction
