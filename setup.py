@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="teyered",
-    version="0.1",
+    version="0.1.1",
     author="Karolis Spukas, Kacper Kielak, Leonardo Castorina",
     author_email="hello@osmitau.com",
     description="Machine Learning and Computer Vision framework for tiredness detection.",

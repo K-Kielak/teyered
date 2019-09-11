@@ -41,7 +41,7 @@ def _find_blink_heights(heights):
         are_blinks[i] = are_blinks[i] or \
                         (heights[i] < low_threshold and are_blinks[i - 1])
 
-    for i in range(len(heights) - 1, 0, -1):
+    for i in range(len(heights) - 2, -1, -1):
         are_blinks[i] = are_blinks[i] or \
                         (heights[i] < low_threshold and are_blinks[i + 1])
 
