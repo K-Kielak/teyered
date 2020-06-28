@@ -16,6 +16,7 @@ class VideoGenerator:
         self._vid_fps = None
         self._vid_frames_count = None
         self._next_frame_data = None
+        self._frames_failed_to_read = 0
 
     def __enter__(self):
         self.open()
@@ -34,7 +35,7 @@ class VideoGenerator:
         logger.info(f'Height (px): {self._vid.get(cv2.CAP_PROP_FRAME_HEIGHT)}')
         logger.info(f'FPS: {self._vid_fps}')
         logger.info(f'Frames count: {self._vid_frames_count}')
-        logger.info(f'Analysing every {self._frames_to_skip}th frame')
+        logger.info(f'Analysing every {self._frames_to_skip + 1}th frame')
         self._read_next_frame()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -58,6 +59,7 @@ class VideoGenerator:
             raise IOError('Cannot process the video, file is not open.')
 
         if self.is_over():
+            logger.info('Video finished.')
             raise StopIteration('Video is over, cannot read next frame.')
 
         frame_timespan, frame = self._next_frame_data
@@ -65,22 +67,37 @@ class VideoGenerator:
         return frame_timespan, frame
 
     def _read_next_frame(self):
-        # Skip frames
-        frame_num = self._vid.get(cv2.CAP_PROP_POS_FRAMES)
-        while not self.is_over() and frame_num % self._frames_to_skip != 0:
+        # Skip next frames
+        logger.debug(f'Skipping {self._frames_to_skip} frames.')
+        for _ in range(self._frames_to_skip):
+            if self.is_over():
+                logger.debug(f'Reached the end of video during frame skipping.')
+                return
+
             self._vid.read()
-            frame_num = self._vid.get(cv2.CAP_PROP_POS_FRAMES)
 
-        if self.is_over():
-            logger.info('Video finished')
-            return
-
-        # Read frame to memory
+        # Read frame
+        frame_num = self._vid.get(cv2.CAP_PROP_POS_FRAMES)
         ret, frame = self._vid.read()
-        if not ret:
+
+        # If failed to read, try next frames until success or video finishes
+        while not ret:
+            if self.is_over():
+                return
+
+            self._frames_failed_to_read += 1
             logger.warning(f'Frame {frame_num} could not be read.')
-            self._read_next_frame()
-            return
+            logger.warning(f'Failed to read {self._frames_failed_to_read} '
+                           f'out of {frame_num + 1} frames so far.')
+            ret, frame = self._vid.read()
+            if frame_num == self._vid.get(cv2.CAP_PROP_POS_FRAMES):
+                logger.warning(f'Video reading fails to progress further'
+                               f'than frame {frame_num} (out of initially '
+                               f'planned {self._vid_frames_count}). '
+                               f'Finishing reading the video prematurely.')
+                self._vid_frames_count = frame_num
+
+            frame_num = self._vid.get(cv2.CAP_PROP_POS_FRAMES)
 
         logger.debug(f'Loading frame no:. {frame_num}')
         frame_timespan = frame_num / self._vid_fps  # [s]
